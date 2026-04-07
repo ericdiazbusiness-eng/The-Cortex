@@ -1,0 +1,58 @@
+[
+  {
+    "id": "operator-01",
+    "name": "OPERATOR_01",
+    "role": "Prime conductor",
+    "description": "Directs the orchestration mesh and arbitrates critical task priorities.",
+    "status": "active",
+    "sync": 99.4,
+    "load": 72,
+    "commandIds": ["initialize-node", "start-engine"],
+    "capabilities": ["Dispatch", "Priority arbitration", "Telemetry fusion"],
+    "memoryBank": 41,
+    "lastActiveAt": "2026-03-27T11:06:00.000Z",
+    "accent": "cyan"
+  },
+  {
+    "id": "theta-4",
+    "name": "THETA_4",
+    "role": "L2 compute lattice",
+    "description": "Executes high-density compute bursts and speculative solution branches.",
+    "status": "idle",
+    "sync": 94.2,
+    "load": 58,
+    "commandIds": ["start-engine"],
+    "capabilities": ["Batch execution", "Inference bursts", "Mesh scaling"],
+    "memoryBank": 27,
+    "lastActiveAt": "2026-03-27T10:57:00.000Z",
+    "accent": "green"
+  },
+  {
+    "id": "vortex-9",
+    "name": "VORTEX_9",
+    "role": "Edge stream relay",
+    "description": "Mirrors remote signals, stabilizes ingress streams, and catches anomaly spikes.",
+    "status": "warning",
+    "sync": 87.1,
+    "load": 63,
+    "commandIds": ["wake-vortex", "override-lock"],
+    "capabilities": ["Edge relay", "Ingress stabilization", "Alert fan-out"],
+    "memoryBank": 18,
+    "lastActiveAt": "2026-03-27T10:52:00.000Z",
+    "accent": "magenta"
+  },
+  {
+    "id": "mnemosyne",
+    "name": "MNEMOSYNE",
+    "role": "Memory archivist",
+    "description": "Curates durable recollections, promotes pinned memories, and compacts stale context.",
+    "status": "active",
+    "sync": 96.8,
+    "load": 44,
+    "commandIds": ["archive-memory-scan", "resync-lattice"],
+    "capabilities": ["Memory curation", "Pinned recall", "Archive sweeps"],
+    "memoryBank": 63,
+    "lastActiveAt": "2026-03-27T11:03:00.000Z",
+    "accent": "amber"
+  }
+]

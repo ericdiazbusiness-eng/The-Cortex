@@ -1,0 +1,57 @@
+[
+  {
+    "id": "memory-zib-001",
+    "agentId": "zib",
+    "title": "Critical recall failure - stale memory caused wrong Notion page",
+    "detail": "ZIB created a Notion page about Ginger Cafe when asked about current focus, without checking actual chat context. The Cortex session was about Scavenjer and Marbleverse operations. ZIB relied on MEMORY.md instead of verifying conversation content. Lossless-claw was also found to be non-functional (not slotted as context engine). MEMORY.md has been updated with corrected focus and failure documentation. Lossless-claw needs config fix: add plugins.slots.contextEngine: 'lossless-claw' to openclaw.json.",
+    "timestamp": "2026-03-29T12:30:00.000Z",
+    "priority": "critical",
+    "category": "memory_failure",
+    "keywords": ["memory", "recall", "failure", "stale", "scavenjer", "marbleverse", "context"],
+    "pinned": true
+  },
+  {
+    "id": "memory-1",
+    "agentId": "operator-01",
+    "title": "Crisis routing heuristic refreshed",
+    "detail": "Operator_01 recalibrated crisis routing priorities after observing a 12% spike in cross-agent contention.",
+    "timestamp": "2026-03-27T11:02:00.000Z",
+    "priority": "high",
+    "category": "operations",
+    "keywords": ["routing", "priority", "crisis"],
+    "pinned": true
+  },
+  {
+    "id": "memory-2",
+    "agentId": "mnemosyne",
+    "title": "Pinned memory shard promoted",
+    "detail": "Mnemosyne promoted a synthesis artifact into the long-term archive for future orchestration planning.",
+    "timestamp": "2026-03-27T10:58:00.000Z",
+    "priority": "medium",
+    "category": "archive",
+    "keywords": ["archive", "promotion", "context"],
+    "pinned": true
+  },
+  {
+    "id": "memory-3",
+    "agentId": "vortex-9",
+    "title": "Edge anomaly detected",
+    "detail": "Vortex_9 observed oscillation in the relay mesh and requested a manual wake/reset for one ingress corridor.",
+    "timestamp": "2026-03-27T10:48:00.000Z",
+    "priority": "high",
+    "category": "anomaly",
+    "keywords": ["edge", "relay", "anomaly"],
+    "pinned": false
+  },
+  {
+    "id": "memory-4",
+    "agentId": "theta-4",
+    "title": "Speculative branch cache cooled",
+    "detail": "Theta_4 retired low-confidence branches to recover thermal headroom for the next burst window.",
+    "timestamp": "2026-03-27T10:41:00.000Z",
+    "priority": "low",
+    "category": "compute",
+    "keywords": ["cache", "thermal", "burst"],
+    "pinned": false
+  }
+]

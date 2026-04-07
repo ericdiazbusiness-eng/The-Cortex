@@ -1,0 +1,37 @@
+[
+  {
+    "id": "log-1",
+    "timestamp": "2026-03-27T11:05:30.000Z",
+    "channel": "core",
+    "severity": "info",
+    "message": "Sentient core pulse stabilized at 0.83 bloom amplitude.",
+    "accent": "cyan"
+  },
+  {
+    "id": "log-2",
+    "timestamp": "2026-03-27T11:05:14.000Z",
+    "channel": "scheduler",
+    "severity": "warning",
+    "message": "Edge guardian drift exceeds preferred threshold by 6 minutes.",
+    "agentId": "vortex-9",
+    "accent": "amber"
+  },
+  {
+    "id": "log-3",
+    "timestamp": "2026-03-27T11:04:52.000Z",
+    "channel": "memory",
+    "severity": "success",
+    "message": "Pinned recollection promotion finished without shard loss.",
+    "agentId": "mnemosyne",
+    "accent": "green"
+  },
+  {
+    "id": "log-4",
+    "timestamp": "2026-03-27T11:04:27.000Z",
+    "channel": "agents",
+    "severity": "info",
+    "message": "Operator_01 broadcasted a fresh prioritization lattice to 4 active nodes.",
+    "agentId": "operator-01",
+    "accent": "magenta"
+  }
+]
