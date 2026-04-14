@@ -17,13 +17,26 @@ export type CortexRealtimeStatus =
 export type CortexRealtimeVisualState = 'off' | 'on'
 export type CortexRealtimeMode =
   | 'premium_voice'
+  | 'neural_voice'
   | 'lean_voice'
   | 'tool_voice'
   | 'ui_director'
-export type CortexRealtimeEngine = 'webrtc' | 'tool_voice'
+export type CortexVoiceRuntime = 'voice_pipeline' | 'experimental_realtime_webrtc'
+export type CortexVoiceProfileSet = 'default_three_mode' | 'legacy_four_mode'
+export type CortexVoiceProvider = 'openai' | 'elevenlabs'
 export type CortexRealtimeNavigationPolicy = 'auto' | 'ask_then_move' | 'focus_only'
 export type CortexRealtimeToolPreference = 'read_first' | 'ui_first'
 export type CortexRealtimeToolGroup = 'read' | 'ui_action' | 'execution'
+export type CortexVoicePipelineStage =
+  | 'ready'
+  | 'capturing'
+  | 'transcribing'
+  | 'responding'
+  | 'tooling'
+  | 'speaking'
+  | 'silent_complete'
+  | 'error'
+  | 'stopped'
 export type CortexSystemMetricKey =
   | 'throughput'
   | 'memoryIntegrity'
@@ -38,6 +51,19 @@ export type CortexViewContextValue =
   | string[]
   | number[]
 
+export type CortexPronunciationDictionaryLocator = {
+  id: string
+  versionId: string
+}
+
+export type CortexVoiceSettings = {
+  speed?: number
+  stability?: number
+  similarityBoost?: number
+  style?: number
+  useSpeakerBoost?: boolean
+}
+
 export type CortexToolJsonSchema = {
   type: 'object'
   properties: Record<string, unknown>
@@ -49,6 +75,7 @@ export type CortexRealtimeToolDefinition = {
   type: 'function'
   name: string
   description: string
+  strict: true
   parameters: CortexToolJsonSchema
 }
 
@@ -75,13 +102,16 @@ export type CortexRealtimeModeProfile = {
   id: CortexRealtimeMode
   ariaLabel: string
   color: 'cyan' | 'green' | 'amber' | 'magenta'
-  glyph: 'pulse' | 'ring' | 'delta' | 'focus'
-  engine: CortexRealtimeEngine
-  model?: string
+  glyph: 'pulse' | 'ring' | 'delta' | 'focus' | 'wave'
+  runtime: CortexVoiceRuntime
   textModel?: string
+  transcriptionProvider: CortexVoiceProvider
   transcriptionModel?: string
+  speechProvider: CortexVoiceProvider
   speechModel?: string
   voice: string
+  voiceSettings?: CortexVoiceSettings
+  pronunciationDictionaries?: CortexPronunciationDictionaryLocator[]
   silentOutput: boolean
   navigationPolicy: CortexRealtimeNavigationPolicy
   toolPreference?: CortexRealtimeToolPreference
@@ -93,12 +123,15 @@ export type CortexRealtimeSessionRequest = {
   tools: CortexRealtimeToolDefinition[]
   context: CortexViewContext
   mode: CortexRealtimeMode
-  engine: CortexRealtimeEngine
-  model?: string
+  runtime: CortexVoiceRuntime
   textModel?: string
+  transcriptionProvider: CortexVoiceProvider
   transcriptionModel?: string
+  speechProvider: CortexVoiceProvider
   speechModel?: string
   voice?: string
+  voiceSettings?: CortexVoiceSettings
+  pronunciationDictionaries?: CortexPronunciationDictionaryLocator[]
   silentOutput: boolean
   navigationPolicy: CortexRealtimeNavigationPolicy
   toolPreference?: CortexRealtimeToolPreference
@@ -109,7 +142,11 @@ export type CortexAudioTranscriptionRequest = {
   audioBase64: string
   mimeType: string
   fileName?: string
+  provider?: CortexVoiceProvider
   model?: string
+  sessionAttemptId?: string
+  turnId?: string
+  mode?: CortexRealtimeMode
 }
 
 export type CortexToolVoiceInputItem =
@@ -151,6 +188,9 @@ export type CortexToolVoiceResponseRequest = {
   tools: CortexRealtimeToolDefinition[]
   input: CortexToolVoiceInputItem[]
   previousResponseId?: string | null
+  sessionAttemptId?: string
+  turnId?: string
+  mode?: CortexRealtimeMode
 }
 
 export type CortexToolVoiceResponse = {
@@ -161,9 +201,15 @@ export type CortexToolVoiceResponse = {
 
 export type CortexSpeechSynthesisRequest = {
   text: string
+  provider?: CortexVoiceProvider
   model?: string
   voice?: string
+  voiceSettings?: CortexVoiceSettings
+  pronunciationDictionaries?: CortexPronunciationDictionaryLocator[]
   format?: 'mp3' | 'wav'
+  sessionAttemptId?: string
+  turnId?: string
+  mode?: CortexRealtimeMode
 }
 
 export type CortexSpeechSynthesisResult = {
@@ -171,11 +217,25 @@ export type CortexSpeechSynthesisResult = {
   mimeType: string
 }
 
+export type CortexAbortVoiceTurnRequest = {
+  sessionAttemptId?: string | null
+  turnId?: string | null
+  reason: string
+}
+
+export type CortexAbortVoiceTurnResult = {
+  ok: boolean
+  aborted: boolean
+  abortedStages: string[]
+  reason: string
+}
+
 export type CortexRealtimeToolCall = {
   name: string
   callId: string
   arguments: Record<string, unknown>
   transcript?: string
+  mode?: CortexRealtimeMode
 }
 
 export type CortexRealtimeState = {
@@ -183,9 +243,24 @@ export type CortexRealtimeState = {
   visualState: CortexRealtimeVisualState
   active: boolean
   sessionId: string | null
+  sessionAttemptId: string | null
+  turnId: string | null
+  stage: CortexVoicePipelineStage
   error: string | null
   lastEventAt: string | null
+  lastTranscriptPreview: string | null
+  lastResponsePreview: string | null
   lastToolCall: CortexRealtimeToolCall | null
+  lastInterruptionReason: string | null
+  lastInterruptedResponsePreview: string | null
+  lastAbortedStage: CortexVoicePipelineStage | null
+  lastFailure: {
+    code?: string | null
+    message: string
+    stage: CortexVoicePipelineStage
+    timestamp: string
+  } | null
+  lastCompletedStageAt: string | null
 }
 
 export type CortexRealtimeLogEntry = {
@@ -195,6 +270,33 @@ export type CortexRealtimeLogEntry = {
   agentId?: string
   accent?: AccentTone
 }
+
+export type CortexRealtimeDebugLevel = 'log' | 'warn' | 'error'
+
+export type CortexRealtimeDebugEntry = {
+  id: string
+  timestamp: string
+  source: 'renderer' | 'main'
+  level: CortexRealtimeDebugLevel
+  message: string
+  severity?: CortexRealtimeDebugLevel
+  mode?: CortexRealtimeMode | 'unknown'
+  stage?: CortexVoicePipelineStage
+  transport?: CortexVoiceRuntime
+  sessionAttemptId?: string | null
+  turnId?: string | null
+  transcriptPreview?: string | null
+  responsePreview?: string | null
+  toolName?: string | null
+  errorCode?: string | null
+  errorMessage?: string | null
+  context?: Record<string, unknown>
+}
+
+export type CortexRealtimeDebugEntryInput = Omit<
+  CortexRealtimeDebugEntry,
+  'id' | 'timestamp'
+>
 
 export type CortexAgent = {
   id: string
@@ -348,8 +450,14 @@ export type CortexBridge = {
   synthesizeSpeech: (
     payload: CortexSpeechSynthesisRequest,
   ) => Promise<CortexSpeechSynthesisResult>
+  abortVoiceTurn: (payload: CortexAbortVoiceTurnRequest) => Promise<CortexAbortVoiceTurnResult>
   recordRealtimeLog: (entry: CortexRealtimeLogEntry) => Promise<void>
+  getRealtimeDebugEntries: () => Promise<CortexRealtimeDebugEntry[]>
+  recordRealtimeDebug: (entry: CortexRealtimeDebugEntryInput) => Promise<void>
   subscribeToEvents: (listener: (event: CortexStreamEvent) => void) => () => void
+  subscribeToRealtimeDebug: (
+    listener: (entry: CortexRealtimeDebugEntry) => void,
+  ) => () => void
 }
 
 export const DEFAULT_REALTIME_STATE: CortexRealtimeState = {
@@ -357,9 +465,19 @@ export const DEFAULT_REALTIME_STATE: CortexRealtimeState = {
   visualState: 'off',
   active: false,
   sessionId: null,
+  sessionAttemptId: null,
+  turnId: null,
+  stage: 'stopped',
   error: null,
   lastEventAt: null,
+  lastTranscriptPreview: null,
+  lastResponsePreview: null,
   lastToolCall: null,
+  lastInterruptionReason: null,
+  lastInterruptedResponsePreview: null,
+  lastAbortedStage: null,
+  lastFailure: null,
+  lastCompletedStageAt: null,
 }
 
 export const REALTIME_MODE_STORAGE_KEY = 'cortex-realtime-mode'
@@ -389,24 +507,75 @@ export const CORTEX_UI_ACTION_TOOL_NAMES = [
 
 export const CORTEX_EXECUTION_TOOL_NAMES = ['run_command'] as const
 
-// Mode positioning:
-// - premium_voice / PRIME: highest-quality, highest-cost full realtime voice
-// - lean_voice / ECO: lower-cost realtime voice using the smaller model
-// - tool_voice / VECTOR: cheapest voice-capable path, optimized for command/tool work
-// - ui_director / GUIDE: silent UI-first mode for explicit navigation and metric reveal
-export const CORTEX_REALTIME_MODE_PROFILES: Record<
+export const DEFAULT_CORTEX_PROFILE_SET: CortexVoiceProfileSet = 'default_three_mode'
+export const LEGACY_CORTEX_PROFILE_SET: CortexVoiceProfileSet = 'legacy_four_mode'
+
+const readConfiguredProfileSet = (): CortexVoiceProfileSet => {
+  const viteImportMeta = import.meta as ImportMeta & {
+    env?: Record<string, string | undefined>
+  }
+  const viteValue =
+    typeof import.meta !== 'undefined' && viteImportMeta.env
+      ? viteImportMeta.env.VITE_CORTEX_PROFILE_SET
+      : undefined
+  const runtimeProcess = globalThis as typeof globalThis & {
+    process?: {
+      env?: Record<string, string | undefined>
+    }
+  }
+  const processValue =
+    runtimeProcess.process?.env
+      ? runtimeProcess.process.env.VITE_CORTEX_PROFILE_SET ??
+        runtimeProcess.process.env.CORTEX_PROFILE_SET
+      : undefined
+
+  return viteValue === LEGACY_CORTEX_PROFILE_SET || processValue === LEGACY_CORTEX_PROFILE_SET
+    ? LEGACY_CORTEX_PROFILE_SET
+    : DEFAULT_CORTEX_PROFILE_SET
+}
+
+export const getConfiguredCortexProfileSet = () => readConfiguredProfileSet()
+
+const buildLegacyRealtimeModeProfiles = (): Record<
   CortexRealtimeMode,
   CortexRealtimeModeProfile
-> = {
+> => ({
   premium_voice: {
     id: 'premium_voice',
     ariaLabel: 'Premium voice mode',
     color: 'cyan',
     glyph: 'pulse',
-    engine: 'webrtc',
-    model: 'gpt-realtime-1.5',
+    runtime: 'voice_pipeline',
+    textModel: 'gpt-4.1',
+    transcriptionProvider: 'openai',
     transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'openai',
+    speechModel: 'gpt-4o-mini-tts',
     voice: 'marin',
+    silentOutput: false,
+    navigationPolicy: 'auto',
+    toolPreference: 'read_first',
+    preferredToolGroups: ['read', 'ui_action', 'execution'],
+  },
+  neural_voice: {
+    id: 'neural_voice',
+    ariaLabel: 'Neural voice mode',
+    color: 'amber',
+    glyph: 'wave',
+    runtime: 'voice_pipeline',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'elevenlabs',
+    transcriptionModel: 'scribe_v2',
+    speechProvider: 'elevenlabs',
+    speechModel: 'eleven_flash_v2_5',
+    voice: 'elevenlabs-custom',
+    voiceSettings: {
+      stability: 0.42,
+      similarityBoost: 0.78,
+      style: 0.28,
+      speed: 1,
+      useSpeakerBoost: true,
+    },
     silentOutput: false,
     navigationPolicy: 'auto',
     toolPreference: 'read_first',
@@ -417,9 +586,12 @@ export const CORTEX_REALTIME_MODE_PROFILES: Record<
     ariaLabel: 'Lean voice mode',
     color: 'green',
     glyph: 'ring',
-    engine: 'webrtc',
-    model: 'gpt-realtime-mini',
+    runtime: 'voice_pipeline',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'openai',
     transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'openai',
+    speechModel: 'gpt-4o-mini-tts',
     voice: 'marin',
     silentOutput: false,
     navigationPolicy: 'auto',
@@ -431,9 +603,11 @@ export const CORTEX_REALTIME_MODE_PROFILES: Record<
     ariaLabel: 'Tool voice mode',
     color: 'amber',
     glyph: 'delta',
-    engine: 'tool_voice',
-    textModel: 'gpt-4o-mini',
+    runtime: 'voice_pipeline',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'openai',
     transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'openai',
     speechModel: 'gpt-4o-mini-tts',
     voice: 'marin',
     silentOutput: false,
@@ -446,16 +620,156 @@ export const CORTEX_REALTIME_MODE_PROFILES: Record<
     ariaLabel: 'UI director mode',
     color: 'magenta',
     glyph: 'focus',
-    engine: 'tool_voice',
-    textModel: 'gpt-4o-mini',
+    runtime: 'voice_pipeline',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'openai',
     transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'openai',
     voice: 'marin',
     silentOutput: true,
     navigationPolicy: 'ask_then_move',
     toolPreference: 'ui_first',
     preferredToolGroups: ['ui_action', 'read', 'execution'],
   },
+})
+
+const buildDefaultRealtimeModeProfiles = (): Record<
+  CortexRealtimeMode,
+  CortexRealtimeModeProfile
+> => ({
+  premium_voice: {
+    id: 'premium_voice',
+    ariaLabel: 'Premium voice mode',
+    color: 'cyan',
+    glyph: 'pulse',
+    runtime: 'voice_pipeline',
+    textModel: 'gpt-4.1',
+    transcriptionProvider: 'openai',
+    transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'openai',
+    speechModel: 'gpt-4o-mini-tts',
+    voice: 'marin',
+    silentOutput: false,
+    navigationPolicy: 'auto',
+    toolPreference: 'read_first',
+    preferredToolGroups: ['read', 'ui_action', 'execution'],
+  },
+  neural_voice: {
+    id: 'neural_voice',
+    ariaLabel: 'Neural voice mode',
+    color: 'amber',
+    glyph: 'wave',
+    runtime: 'voice_pipeline',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'elevenlabs',
+    transcriptionModel: 'scribe_v2',
+    speechProvider: 'elevenlabs',
+    speechModel: 'eleven_flash_v2_5',
+    voice: 'elevenlabs-custom',
+    voiceSettings: {
+      stability: 0.42,
+      similarityBoost: 0.78,
+      style: 0.28,
+      speed: 1,
+      useSpeakerBoost: true,
+    },
+    silentOutput: false,
+    navigationPolicy: 'auto',
+    toolPreference: 'read_first',
+    preferredToolGroups: ['read', 'ui_action', 'execution'],
+  },
+  lean_voice: {
+    id: 'lean_voice',
+    ariaLabel: 'Lean voice mode',
+    color: 'green',
+    glyph: 'ring',
+    runtime: 'voice_pipeline',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'openai',
+    transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'openai',
+    speechModel: 'gpt-4o-mini-tts',
+    voice: 'marin',
+    silentOutput: false,
+    navigationPolicy: 'auto',
+    toolPreference: 'read_first',
+    preferredToolGroups: ['execution', 'read', 'ui_action'],
+  },
+  tool_voice: {
+    id: 'tool_voice',
+    ariaLabel: 'Tool voice mode',
+    color: 'amber',
+    glyph: 'delta',
+    runtime: 'voice_pipeline',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'openai',
+    transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'openai',
+    speechModel: 'gpt-4o-mini-tts',
+    voice: 'marin',
+    silentOutput: false,
+    navigationPolicy: 'auto',
+    toolPreference: 'read_first',
+    preferredToolGroups: ['execution', 'read', 'ui_action'],
+  },
+  ui_director: {
+    id: 'ui_director',
+    ariaLabel: 'UI director mode',
+    color: 'magenta',
+    glyph: 'focus',
+    runtime: 'voice_pipeline',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'openai',
+    transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'openai',
+    voice: 'marin',
+    silentOutput: true,
+    navigationPolicy: 'ask_then_move',
+    toolPreference: 'ui_first',
+    preferredToolGroups: ['ui_action', 'read', 'execution'],
+  },
+})
+
+export const getRealtimeModeProfiles = (): Record<
+  CortexRealtimeMode,
+  CortexRealtimeModeProfile
+> =>
+  readConfiguredProfileSet() === LEGACY_CORTEX_PROFILE_SET
+    ? buildLegacyRealtimeModeProfiles()
+    : buildDefaultRealtimeModeProfiles()
+
+export const getRealtimeModeProfile = (mode: CortexRealtimeMode) =>
+  getRealtimeModeProfiles()[mode]
+
+export const getVisibleRealtimeModes = (): CortexRealtimeMode[] =>
+  readConfiguredProfileSet() === LEGACY_CORTEX_PROFILE_SET
+    ? ['premium_voice', 'neural_voice', 'lean_voice', 'tool_voice', 'ui_director']
+    : ['premium_voice', 'neural_voice', 'lean_voice', 'ui_director']
+
+export const resolveStoredRealtimeMode = (
+  storedMode: string | null | undefined,
+): CortexRealtimeMode => {
+  const normalizedStoredMode =
+    readConfiguredProfileSet() === LEGACY_CORTEX_PROFILE_SET
+      ? storedMode
+      : storedMode === 'tool_voice'
+        ? 'lean_voice'
+        : storedMode
+
+  if (!normalizedStoredMode) {
+    return DEFAULT_REALTIME_MODE
+  }
+
+  const profiles = getRealtimeModeProfiles()
+  if (normalizedStoredMode in profiles) {
+    return normalizedStoredMode as CortexRealtimeMode
+  }
+
+  return DEFAULT_REALTIME_MODE
 }
+
+// Active mode registry for runtime usage.
+export const CORTEX_REALTIME_MODE_PROFILES = getRealtimeModeProfiles()
 
 export const DEFAULT_REALTIME_MODE: CortexRealtimeMode = 'premium_voice'
 

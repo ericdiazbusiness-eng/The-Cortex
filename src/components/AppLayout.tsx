@@ -5,13 +5,15 @@ import { AnimatedBackground } from './AnimatedBackground'
 import { useCortex } from '@/hooks/useCortex'
 import { getModeContent, getPageMeta } from '@/lib/ui-mode'
 import {
-  CORTEX_REALTIME_MODE_PROFILES,
+  getRealtimeModeProfile,
+  getVisibleRealtimeModes,
   type CortexRealtimeMode,
   type CortexRoute,
 } from '@/shared/cortex'
 
 const MODE_FLASH_LABELS: Record<CortexRealtimeMode, string> = {
   premium_voice: 'PRIME',
+  neural_voice: 'NEURAL',
   lean_voice: 'ECO',
   tool_voice: 'VECTOR',
   ui_director: 'GUIDE',
@@ -22,6 +24,7 @@ const MODE_FLASH_MS = 900
 export const AppLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const modeFlashTickRef = useRef(0)
   const [modeFlash, setModeFlash] = useState<{
     mode: CortexRealtimeMode
     label: string
@@ -73,7 +76,7 @@ export const AppLayout = () => {
     setModeFlash({
       mode,
       label: MODE_FLASH_LABELS[mode],
-      tick: Date.now(),
+      tick: (modeFlashTickRef.current += 1),
     })
 
     modeFlashTimeoutRef.current = window.setTimeout(() => {
@@ -88,8 +91,16 @@ export const AppLayout = () => {
   }
 
   return (
-    <div className="app-shell" data-mode={uiMode}>
-      <AnimatedBackground mode={uiMode} />
+    <div
+      className="app-shell"
+      data-mode={uiMode}
+      data-background-scope={isOverview ? 'overview' : 'page'}
+    >
+      {isOverview ? (
+        <AnimatedBackground mode={uiMode} />
+      ) : (
+        <div className="page-backdrop-static" aria-hidden="true" />
+      )}
 
       <div className="content-shell">
         {modeFlash ? (
@@ -99,7 +110,7 @@ export const AppLayout = () => {
           >
             <span
               key={`${modeFlash.mode}-${modeFlash.tick}`}
-              className={`realtime-mode-flash realtime-mode-flash-${CORTEX_REALTIME_MODE_PROFILES[modeFlash.mode].color}`}
+              className={`realtime-mode-flash realtime-mode-flash-${getRealtimeModeProfile(modeFlash.mode).color}`}
             >
               {modeFlash.label}
             </span>
@@ -121,25 +132,29 @@ export const AppLayout = () => {
               <span className="status-chip-indicator" aria-hidden="true" />
             </div>
             <div className="realtime-mode-strip" role="radiogroup" aria-label="Realtime mode">
-              {Object.values(CORTEX_REALTIME_MODE_PROFILES).map((profile) => (
-                <button
-                  key={profile.id}
-                  type="button"
-                  role="radio"
-                  aria-label={profile.ariaLabel}
-                  aria-checked={realtimeMode === profile.id}
-                  className={`realtime-mode-toggle realtime-mode-toggle-${profile.color}${
-                    realtimeMode === profile.id ? ' is-active' : ''
-                  }`}
-                  onClick={() => handleRealtimeModeSelect(profile.id)}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="realtime-mode-glyph"
-                    data-glyph={profile.glyph}
-                  />
-                </button>
-              ))}
+              {getVisibleRealtimeModes().map((mode) => {
+                const profile = getRealtimeModeProfile(mode)
+
+                return (
+                  <button
+                    key={profile.id}
+                    type="button"
+                    role="radio"
+                    aria-label={profile.ariaLabel}
+                    aria-checked={realtimeMode === profile.id}
+                    className={`realtime-mode-toggle realtime-mode-toggle-${profile.color}${
+                      realtimeMode === profile.id ? ' is-active' : ''
+                    }`}
+                    onClick={() => handleRealtimeModeSelect(profile.id)}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="realtime-mode-glyph"
+                      data-glyph={profile.glyph}
+                    />
+                  </button>
+                )
+              })}
             </div>
             <button
               type="button"
@@ -182,7 +197,9 @@ export const AppLayout = () => {
               {({ isActive }) => (
                 <>
                   <span className="dock-icon">{item.icon}</span>
-                  {isActive ? <span className="dock-active-label">{item.label}</span> : null}
+                  <span className={`dock-active-label${isActive ? ' is-visible' : ''}`}>
+                    {item.label}
+                  </span>
                 </>
               )}
             </NavLink>

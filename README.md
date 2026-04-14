@@ -1,5 +1,11 @@
 # React + TypeScript + Vite
 
+## Cortex Voice Runtime
+
+- Current default visible profile set: `PRIME`, `ECO`, `GUIDE`
+- Internal rollback profile set: `legacy_four_mode`
+- Dated fallback note: [docs/voice-runtime-fallback-2026-04-08.md](./docs/voice-runtime-fallback-2026-04-08.md)
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

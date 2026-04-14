@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { CoreMind } from '@/components/CoreMind'
+import { OverviewUsageRings } from '@/components/OverviewUsageRings'
 import { useCortex } from '@/hooks/useCortex'
 
 export const OverviewPage = () => {
@@ -19,6 +20,7 @@ export const OverviewPage = () => {
     })
   }, [
     setViewContext,
+    snapshot,
     snapshot?.system.activeNodes,
     snapshot?.system.neuralLoad,
     snapshot?.system.signalCoherence,
@@ -30,11 +32,14 @@ export const OverviewPage = () => {
 
   return (
     <div className="overview-brain-only">
-      <CoreMind
-        onToggle={toggleRealtimeVoice}
-        realtimeState={realtime}
-        uiMode={uiMode}
-      />
+      <div className="overview-hud">
+        <OverviewUsageRings uiMode={uiMode} />
+        <CoreMind
+          onToggle={toggleRealtimeVoice}
+          realtimeState={realtime}
+          uiMode={uiMode}
+        />
+      </div>
     </div>
   )
 }

@@ -1,9 +1,11 @@
 import {
-  CORTEX_REALTIME_MODE_PROFILES,
   DEFAULT_FALLBACK_DATA,
+  getRealtimeModeProfile,
   type CortexBridge,
   type CortexCommandResult,
   type CortexDashboardSnapshot,
+  type CortexRealtimeDebugEntry,
+  type CortexRealtimeDebugEntryInput,
   type CortexLogEvent,
   type CortexRealtimeLogEntry,
   type CortexStreamEvent,
@@ -15,6 +17,7 @@ const isoNow = () => new Date().toISOString()
 
 export const createBrowserFallbackApi = (): CortexBridge => {
   let snapshot: CortexDashboardSnapshot = clone(DEFAULT_FALLBACK_DATA)
+  let realtimeDebugEntries: CortexRealtimeDebugEntry[] = []
 
   return {
     async getDashboardSnapshot() {
@@ -94,8 +97,16 @@ export const createBrowserFallbackApi = (): CortexBridge => {
     },
     async synthesizeSpeech(payload) {
       throw new Error(
-        `Speech synthesis with ${payload.model ?? CORTEX_REALTIME_MODE_PROFILES.tool_voice.speechModel} requires the Electron runtime bridge.`,
+        `Speech synthesis with ${payload.model ?? getRealtimeModeProfile('lean_voice').speechModel} requires the Electron runtime bridge.`,
       )
+    },
+    async abortVoiceTurn(payload) {
+      return {
+        ok: true,
+        aborted: false,
+        abortedStages: [],
+        reason: payload.reason,
+      }
     },
     async recordRealtimeLog(entry: CortexRealtimeLogEntry) {
       const log: CortexLogEvent = {
@@ -112,6 +123,19 @@ export const createBrowserFallbackApi = (): CortexBridge => {
         ...snapshot,
         logs: [log, ...snapshot.logs].slice(0, 40),
       }
+    },
+    async getRealtimeDebugEntries() {
+      return clone(realtimeDebugEntries)
+    },
+    async recordRealtimeDebug(entry: CortexRealtimeDebugEntryInput) {
+      realtimeDebugEntries = [
+        {
+          id: `debug-${Date.now()}`,
+          timestamp: isoNow(),
+          ...entry,
+        },
+        ...realtimeDebugEntries,
+      ].slice(0, 200)
     },
     subscribeToEvents(listener) {
       const timer = window.setInterval(() => {
@@ -130,6 +154,9 @@ export const createBrowserFallbackApi = (): CortexBridge => {
       }, 6000)
 
       return () => window.clearInterval(timer)
+    },
+    subscribeToRealtimeDebug() {
+      return () => {}
     },
   }
 }

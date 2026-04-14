@@ -10,77 +10,6 @@ import {
   type CortexViewContext,
 } from '@/shared/cortex'
 
-class FakeDataChannel extends EventTarget {
-  readyState: RTCDataChannelState = 'connecting'
-
-  sent: string[] = []
-
-  close() {
-    this.readyState = 'closed'
-    this.dispatchEvent(new Event('close'))
-  }
-
-  emitJson(payload: unknown) {
-    this.dispatchEvent(
-      new MessageEvent('message', {
-        data: JSON.stringify(payload),
-      }),
-    )
-  }
-
-  open() {
-    this.readyState = 'open'
-    this.dispatchEvent(new Event('open'))
-  }
-
-  send(payload: string) {
-    this.sent.push(payload)
-  }
-}
-
-class FakePeerConnection extends EventTarget {
-  readonly createOffer = vi.fn(async () => ({
-    sdp: 'offer-sdp',
-    type: 'offer',
-  }))
-
-  readonly createDataChannel = vi.fn(() => this.dataChannel)
-
-  readonly addTrack = vi.fn()
-
-  readonly close = vi.fn(() => {
-    this.signalingState = 'closed'
-  })
-
-  readonly dataChannel = new FakeDataChannel()
-
-  readonly setLocalDescription = vi.fn(async (description) => {
-    this.localDescription = description
-    this.iceGatheringState = 'complete'
-    this.dispatchEvent(new Event('icegatheringstatechange'))
-  })
-
-  readonly setRemoteDescription = vi.fn(async () => {
-    this.connectionState = 'connected'
-    this.iceConnectionState = 'connected'
-    this.dispatchEvent(new Event('connectionstatechange'))
-    this.dispatchEvent(new Event('iceconnectionstatechange'))
-    this.dataChannel.open()
-  })
-
-  connectionState: RTCPeerConnectionState = 'new'
-
-  iceConnectionState: RTCIceConnectionState = 'new'
-
-  iceGatheringState: RTCIceGatheringState = 'new'
-
-  localDescription: RTCSessionDescriptionInit | null = null
-
-  ontrack: ((event: RTCTrackEvent) => void) | null = null
-
-  signalingState: RTCSignalingState = 'stable'
-}
-
 const createBridgeStub = (overrides: Partial<CortexBridge> = {}): CortexBridge => ({
   getDashboardSnapshot: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA),
   listAgents: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.agents),
@@ -96,7 +25,7 @@ const createBridgeStub = (overrides: Partial<CortexBridge> = {}): CortexBridge =
     ranAt: new Date().toISOString(),
     durationMs: 80,
   }),
-  createRealtimeCall: vi.fn().mockResolvedValue('answer-sdp'),
+  createRealtimeCall: vi.fn().mockResolvedValue('unused'),
   transcribeAudio: vi.fn().mockResolvedValue('hello cortex'),
   createToolVoiceResponse: vi.fn().mockResolvedValue({
     id: 'response-1',
@@ -107,8 +36,17 @@ const createBridgeStub = (overrides: Partial<CortexBridge> = {}): CortexBridge =
     audioBase64: '',
     mimeType: 'audio/mpeg',
   }),
+  abortVoiceTurn: vi.fn().mockResolvedValue({
+    ok: true,
+    aborted: false,
+    abortedStages: [],
+    reason: 'none',
+  }),
   recordRealtimeLog: vi.fn().mockResolvedValue(undefined),
+  getRealtimeDebugEntries: vi.fn().mockResolvedValue([]),
+  recordRealtimeDebug: vi.fn().mockResolvedValue(undefined),
   subscribeToEvents: vi.fn().mockImplementation(() => () => {}),
+  subscribeToRealtimeDebug: vi.fn().mockImplementation(() => () => {}),
   ...overrides,
 })
 
@@ -132,7 +70,7 @@ const createAudioContextStub = () => {
   } as unknown as MediaStreamAudioSourceNode
   const analyser = {
     fftSize: 0,
-    getByteTimeDomainData: vi.fn(),
+    getByteTimeDomainData: vi.fn((buffer: Uint8Array) => buffer.fill(128)),
   } as unknown as AnalyserNode
   const audioContext = {
     createAnalyser: vi.fn(() => analyser),
@@ -158,85 +96,50 @@ const TEST_VIEW_CONTEXT: CortexViewContext = {
   },
 }
 
+const createController = (
+  mode: 'premium_voice' | 'neural_voice' | 'lean_voice' | 'tool_voice' | 'ui_director',
+  bridge: CortexBridge,
+  states: CortexRealtimeState[],
+) => {
+  const { stream } = createMediaStreamStub()
+  const { audioContext } = createAudioContextStub()
+
+  return new CortexRealtimeController(
+    {
+      api: bridge,
+      getSessionRequest: () =>
+        buildRealtimeSessionRequest(DEFAULT_FALLBACK_DATA, TEST_VIEW_CONTEXT, mode),
+      onStateChange: (state) => {
+        states.push(state)
+      },
+      onToolCall: vi.fn().mockResolvedValue({
+        ok: true,
+      }),
+    },
+    {
+      audioContextFactory: () => audioContext,
+      getUserMedia: vi.fn().mockResolvedValue(stream),
+    },
+  )
+}
+
 describe('CortexRealtimeController', () => {
   beforeEach(() => {
     vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(function (
+      this: HTMLMediaElement,
+    ) {
+      this.dispatchEvent(new Event('playing'))
+      return Promise.resolve()
+    })
   })
 
   afterEach(() => {
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
   })
 
-  it('starts, connects, and tears down realtime resources', async () => {
-    const peerConnection = new FakePeerConnection()
-    const { stream, track } = createMediaStreamStub()
-    const { audioContext } = createAudioContextStub()
-    const bridge = createBridgeStub()
-    const states: CortexRealtimeState[] = []
-
-    const controller = new CortexRealtimeController(
-      {
-        api: bridge,
-        getSessionRequest: () =>
-          buildRealtimeSessionRequest(DEFAULT_FALLBACK_DATA, TEST_VIEW_CONTEXT, 'premium_voice'),
-        onStateChange: (state) => {
-          states.push(state)
-        },
-        onToolCall: vi.fn(),
-      },
-      {
-        audioContextFactory: () => audioContext,
-        getUserMedia: vi.fn().mockResolvedValue(stream),
-        rtcPeerConnectionFactory: () => peerConnection as unknown as RTCPeerConnection,
-      },
-    )
-
-    await controller.start()
-
-    expect(bridge.createRealtimeCall).toHaveBeenCalledWith(
-      'offer-sdp',
-      expect.objectContaining({
-        context: TEST_VIEW_CONTEXT,
-      }),
-    )
-    expect(peerConnection.addTrack).toHaveBeenCalledWith(track, stream)
-    expect(states.at(-1)).toMatchObject({
-      active: true,
-      status: 'listening',
-      visualState: 'on',
-    })
-
-    expect(
-      peerConnection.dataChannel.sent.some((payload) => {
-        const parsed = JSON.parse(payload)
-        return (
-          parsed.type === 'session.update' &&
-          parsed.session?.audio?.input?.turn_detection === null &&
-          parsed.session?.audio?.output?.voice === 'marin'
-        )
-      }),
-    ).toBe(true)
-
-    expect(
-      (
-        controller as unknown as {
-          toolVoiceResources: unknown
-        }
-      ).toolVoiceResources,
-    ).toBeTruthy()
-
-    await controller.stop()
-
-    expect(track.stop).toHaveBeenCalled()
-    expect(peerConnection.close).toHaveBeenCalled()
-    expect(states.at(-1)).toMatchObject({
-      active: false,
-      status: 'idle',
-      visualState: 'off',
-    })
-  })
-
-  it('maps each realtime mode to the expected engine and model stack', () => {
+  it('maps each realtime mode to the shared voice pipeline presets', () => {
     const premiumRequest = buildRealtimeSessionRequest(
       DEFAULT_FALLBACK_DATA,
       TEST_VIEW_CONTEXT,
@@ -246,6 +149,11 @@ describe('CortexRealtimeController', () => {
       DEFAULT_FALLBACK_DATA,
       TEST_VIEW_CONTEXT,
       'lean_voice',
+    )
+    const neuralRequest = buildRealtimeSessionRequest(
+      DEFAULT_FALLBACK_DATA,
+      TEST_VIEW_CONTEXT,
+      'neural_voice',
     )
     const toolRequest = buildRealtimeSessionRequest(
       DEFAULT_FALLBACK_DATA,
@@ -259,183 +167,79 @@ describe('CortexRealtimeController', () => {
     )
 
     expect(premiumRequest).toMatchObject({
-      engine: 'webrtc',
-      model: 'gpt-realtime-1.5',
-      transcriptionModel: 'gpt-4o-mini-transcribe',
-    })
-    expect(leanRequest).toMatchObject({
-      engine: 'webrtc',
-      model: 'gpt-realtime-mini',
-      transcriptionModel: 'gpt-4o-mini-transcribe',
-    })
-    expect(toolRequest).toMatchObject({
-      engine: 'tool_voice',
-      textModel: 'gpt-4o-mini',
+      runtime: 'voice_pipeline',
+      textModel: 'gpt-4.1',
       transcriptionModel: 'gpt-4o-mini-transcribe',
       speechModel: 'gpt-4o-mini-tts',
     })
-    expect(directorRequest).toMatchObject({
-      engine: 'tool_voice',
-      textModel: 'gpt-4o-mini',
+    expect(leanRequest).toMatchObject({
+      runtime: 'voice_pipeline',
+      textModel: 'gpt-4.1-mini',
+      transcriptionProvider: 'openai',
       transcriptionModel: 'gpt-4o-mini-transcribe',
+      speechProvider: 'openai',
+      speechModel: 'gpt-4o-mini-tts',
+    })
+    expect(neuralRequest).toMatchObject({
+      runtime: 'voice_pipeline',
+      textModel: 'gpt-4.1-mini',
+      transcriptionProvider: 'elevenlabs',
+      transcriptionModel: 'scribe_v2',
+      speechProvider: 'elevenlabs',
+      speechModel: 'eleven_flash_v2_5',
+      voice: 'elevenlabs-custom',
+    })
+    expect(toolRequest).toMatchObject({
+      runtime: 'voice_pipeline',
+      textModel: 'gpt-4.1-mini',
+      transcriptionProvider: 'openai',
+      transcriptionModel: 'gpt-4o-mini-transcribe',
+      speechProvider: 'openai',
+      speechModel: 'gpt-4o-mini-tts',
+    })
+    expect(directorRequest).toMatchObject({
+      runtime: 'voice_pipeline',
+      textModel: 'gpt-4.1-mini',
+      transcriptionProvider: 'openai',
+      transcriptionModel: 'gpt-4o-mini-transcribe',
+      speechProvider: 'openai',
       silentOutput: true,
       navigationPolicy: 'ask_then_move',
       toolPreference: 'ui_first',
     })
   })
 
-  it('moves into an error state when realtime bootstrap fails', async () => {
-    const peerConnection = new FakePeerConnection()
-    const { stream } = createMediaStreamStub()
-    const { audioContext } = createAudioContextStub()
-    const bridge = createBridgeStub({
-      createRealtimeCall: vi
-        .fn()
-        .mockRejectedValue(new Error('Missing OPENAI_API_KEY for realtime voice.')),
-    })
+  it('starts and stops the shared voice pipeline without using realtime WebRTC bootstrap', async () => {
+    const bridge = createBridgeStub()
     const states: CortexRealtimeState[] = []
-
-    const controller = new CortexRealtimeController(
-      {
-        api: bridge,
-        getSessionRequest: () =>
-          buildRealtimeSessionRequest(DEFAULT_FALLBACK_DATA, TEST_VIEW_CONTEXT, 'premium_voice'),
-        onStateChange: (state) => {
-          states.push(state)
-        },
-        onToolCall: vi.fn(),
-      },
-      {
-        audioContextFactory: () => audioContext,
-        getUserMedia: vi.fn().mockResolvedValue(stream),
-        rtcPeerConnectionFactory: () => peerConnection as unknown as RTCPeerConnection,
-      },
-    )
+    const controller = createController('premium_voice', bridge, states)
 
     await controller.start()
+
+    expect(bridge.createRealtimeCall).not.toHaveBeenCalled()
+    expect(states.at(-1)).toMatchObject({
+      active: true,
+      status: 'listening',
+      stage: 'ready',
+      visualState: 'on',
+    })
+
+    await controller.stop()
 
     expect(states.at(-1)).toMatchObject({
       active: false,
-      status: 'error',
+      status: 'idle',
+      stage: 'stopped',
       visualState: 'off',
-      error: 'Missing OPENAI_API_KEY for realtime voice.',
     })
   })
 
-  it('returns to off when the live channel closes unexpectedly', async () => {
-    const peerConnection = new FakePeerConnection()
-    const { stream } = createMediaStreamStub()
-    const { audioContext } = createAudioContextStub()
-    const states: CortexRealtimeState[] = []
-
-    const controller = new CortexRealtimeController(
-      {
-        api: createBridgeStub(),
-        getSessionRequest: () =>
-          buildRealtimeSessionRequest(DEFAULT_FALLBACK_DATA, TEST_VIEW_CONTEXT, 'premium_voice'),
-        onStateChange: (state) => {
-          states.push(state)
-        },
-        onToolCall: vi.fn(),
-      },
-      {
-        audioContextFactory: () => audioContext,
-        getUserMedia: vi.fn().mockResolvedValue(stream),
-        rtcPeerConnectionFactory: () => peerConnection as unknown as RTCPeerConnection,
-      },
-    )
-
-    await controller.start()
-    peerConnection.dataChannel.close()
-
-    await waitFor(() => {
-      expect(states.at(-1)).toMatchObject({
-        active: false,
-        visualState: 'off',
-        status: 'error',
-      })
-    })
-  })
-
-  it('round-trips tool calls back into the realtime data channel', async () => {
-    const peerConnection = new FakePeerConnection()
-    const { stream } = createMediaStreamStub()
-    const { audioContext } = createAudioContextStub()
-    const onToolCall = vi.fn().mockResolvedValue({
-      ok: true,
-      system: 'healthy',
-    })
-
-    const controller = new CortexRealtimeController(
-      {
-        api: createBridgeStub(),
-        getSessionRequest: () =>
-          buildRealtimeSessionRequest(DEFAULT_FALLBACK_DATA, TEST_VIEW_CONTEXT, 'premium_voice'),
-        onStateChange: vi.fn(),
-        onToolCall,
-      },
-      {
-        audioContextFactory: () => audioContext,
-        getUserMedia: vi.fn().mockResolvedValue(stream),
-        rtcPeerConnectionFactory: () => peerConnection as unknown as RTCPeerConnection,
-      },
-    )
-
-    await controller.start()
-
-    peerConnection.dataChannel.emitJson({
-      type: 'response.done',
-      response: {
-        output: [
-          {
-            type: 'function_call',
-            name: 'get_ui_context',
-            call_id: 'call-1',
-            arguments: '{"route":"/"}',
-          },
-        ],
-      },
-    })
-
-    await waitFor(() => {
-      expect(onToolCall).toHaveBeenCalledWith({
-        name: 'get_ui_context',
-        callId: 'call-1',
-        arguments: {
-          route: '/',
-        },
-      })
-    })
-
-    expect(
-      peerConnection.dataChannel.sent.some((payload) => {
-        const parsed = JSON.parse(payload)
-        return (
-          parsed.type === 'conversation.item.create' &&
-          parsed.item?.type === 'function_call_output' &&
-          parsed.item?.call_id === 'call-1'
-        )
-      }),
-    ).toBe(true)
-    expect(
-      peerConnection.dataChannel.sent.some((payload) => {
-        const parsed = JSON.parse(payload)
-        return (
-          parsed.type === 'response.create' &&
-          Array.isArray(parsed.response?.output_modalities) &&
-          parsed.response.output_modalities.includes('audio')
-        )
-      }),
-    ).toBe(true)
-  })
-
-  it('uses the transcription, tool-response, and speech pipeline in tool voice mode', async () => {
-    const { stream } = createMediaStreamStub()
+  it('runs PRIME through transcribe -> respond -> speak with the premium reasoning model', async () => {
     const bridge = createBridgeStub({
-      transcribeAudio: vi.fn().mockResolvedValue('Show me the runtime queue depth.'),
+      transcribeAudio: vi.fn().mockResolvedValue('Show me queue depth.'),
       createToolVoiceResponse: vi.fn().mockResolvedValue({
-        id: 'response-tool-1',
-        outputText: 'Queue depth is eleven and I can open Runtime to show it.',
+        id: 'response-prime-1',
+        outputText: 'Queue depth is eleven.',
         output: [],
       }),
       synthesizeSpeech: vi.fn().mockResolvedValue({
@@ -444,75 +248,100 @@ describe('CortexRealtimeController', () => {
       }),
     })
     const states: CortexRealtimeState[] = []
-    const sourceNode = {
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-    } as unknown as MediaStreamAudioSourceNode
-    const analyser = {
-      fftSize: 0,
-      getByteTimeDomainData: vi.fn(),
-    } as unknown as AnalyserNode
-    const audioContext = {
-      createAnalyser: vi.fn(() => analyser),
-      createMediaStreamSource: vi.fn(() => sourceNode),
-      close: vi.fn().mockResolvedValue(undefined),
-    } as unknown as AudioContext
-
-    vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
-
-    const controller = new CortexRealtimeController(
-      {
-        api: bridge,
-        getSessionRequest: () =>
-          buildRealtimeSessionRequest(DEFAULT_FALLBACK_DATA, TEST_VIEW_CONTEXT, 'tool_voice'),
-        onStateChange: (state) => {
-          states.push(state)
-        },
-        onToolCall: vi.fn(),
-      },
-      {
-        audioContextFactory: () => audioContext,
-        getUserMedia: vi.fn().mockResolvedValue(stream),
-      },
-    )
+    const controller = createController('premium_voice', bridge, states)
 
     await controller.start()
 
-    expect(bridge.createRealtimeCall).not.toHaveBeenCalled()
-    expect(states.at(-1)).toMatchObject({
-      active: true,
-      status: 'listening',
-      visualState: 'on',
-    })
-
-    const toolVoiceBlob = {
+    const blob = {
       type: 'audio/webm',
-      arrayBuffer: async () => new TextEncoder().encode('tool-voice').buffer,
+      arrayBuffer: async () => new TextEncoder().encode('prime-turn').buffer,
     } as unknown as Blob
 
     await (controller as unknown as {
       processToolVoiceTurn: (blob: Blob, version: number) => Promise<void>
       version: number
-    }).processToolVoiceTurn(
-      toolVoiceBlob,
-      (controller as unknown as { version: number }).version,
-    )
+    }).processToolVoiceTurn(blob, (controller as unknown as { version: number }).version)
 
     await waitFor(() => {
       expect(bridge.transcribeAudio).toHaveBeenCalledWith(
         expect.objectContaining({
           model: 'gpt-4o-mini-transcribe',
+          mode: 'premium_voice',
         }),
       )
       expect(bridge.createToolVoiceResponse).toHaveBeenCalledWith(
         expect.objectContaining({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4.1',
+          mode: 'premium_voice',
         }),
       )
       expect(bridge.synthesizeSpeech).toHaveBeenCalledWith(
         expect.objectContaining({
           model: 'gpt-4o-mini-tts',
-          voice: 'marin',
+          mode: 'premium_voice',
+        }),
+      )
+    })
+
+    await waitFor(() => {
+      expect(states.at(-1)).toMatchObject({
+        active: true,
+        status: 'speaking',
+        stage: 'speaking',
+        visualState: 'on',
+        lastTranscriptPreview: 'Show me queue depth.',
+        lastResponsePreview: 'Queue depth is eleven.',
+      })
+    })
+  })
+
+  it('routes NEURAL turns through the ElevenLabs audio providers and the mini brain', async () => {
+    const bridge = createBridgeStub({
+      transcribeAudio: vi.fn().mockResolvedValue('Shape the Cortex voice stack.'),
+      createToolVoiceResponse: vi.fn().mockResolvedValue({
+        id: 'response-neural-1',
+        outputText: 'Neural voice stack is ready.',
+        output: [],
+      }),
+      synthesizeSpeech: vi.fn().mockResolvedValue({
+        audioBase64: 'ZmFrZQ==',
+        mimeType: 'audio/mpeg',
+      }),
+    })
+    const states: CortexRealtimeState[] = []
+    const controller = createController('neural_voice', bridge, states)
+
+    await controller.start()
+
+    const blob = {
+      type: 'audio/webm',
+      arrayBuffer: async () => new TextEncoder().encode('neural-turn').buffer,
+    } as unknown as Blob
+
+    await (controller as unknown as {
+      processToolVoiceTurn: (blob: Blob, version: number) => Promise<void>
+      version: number
+    }).processToolVoiceTurn(blob, (controller as unknown as { version: number }).version)
+
+    await waitFor(() => {
+      expect(bridge.transcribeAudio).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: 'elevenlabs',
+          model: 'scribe_v2',
+          mode: 'neural_voice',
+        }),
+      )
+      expect(bridge.createToolVoiceResponse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'gpt-4.1-mini',
+          mode: 'neural_voice',
+        }),
+      )
+      expect(bridge.synthesizeSpeech).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: 'elevenlabs',
+          model: 'eleven_flash_v2_5',
+          mode: 'neural_voice',
         }),
       )
     })
@@ -520,14 +349,12 @@ describe('CortexRealtimeController', () => {
     expect(states.at(-1)).toMatchObject({
       active: true,
       status: 'speaking',
+      stage: 'speaking',
       visualState: 'on',
     })
-
-    await controller.stop()
   })
 
-  it('keeps tool voice response context across multiple turns', async () => {
-    const { stream } = createMediaStreamStub()
+  it('keeps previous_response_id continuity across VECTOR turns', async () => {
     const bridge = createBridgeStub({
       createToolVoiceResponse: vi
         .fn()
@@ -546,29 +373,85 @@ describe('CortexRealtimeController', () => {
         mimeType: 'audio/mpeg',
       }),
     })
-    const sourceNode = {
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-    } as unknown as MediaStreamAudioSourceNode
-    const analyser = {
-      fftSize: 0,
-      getByteTimeDomainData: vi.fn(),
-    } as unknown as AnalyserNode
-    const audioContext = {
-      createAnalyser: vi.fn(() => analyser),
-      createMediaStreamSource: vi.fn(() => sourceNode),
-      close: vi.fn().mockResolvedValue(undefined),
-    } as unknown as AudioContext
+    const states: CortexRealtimeState[] = []
+    const controller = createController('tool_voice', bridge, states)
 
-    vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+    await controller.start()
 
+    const blob = {
+      type: 'audio/webm',
+      arrayBuffer: async () => new TextEncoder().encode('tool-voice').buffer,
+    } as unknown as Blob
+
+    const internal = controller as unknown as {
+      processToolVoiceTurn: (blob: Blob, version: number) => Promise<void>
+      version: number
+    }
+
+    await internal.processToolVoiceTurn(blob, internal.version)
+    await internal.processToolVoiceTurn(blob, internal.version)
+
+    expect(bridge.createToolVoiceResponse).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        model: 'gpt-4.1-mini',
+        previousResponseId: null,
+      }),
+    )
+    expect(bridge.createToolVoiceResponse).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        model: 'gpt-4.1-mini',
+        previousResponseId: 'response-tool-1',
+      }),
+    )
+  })
+
+  it('routes tool calls through the same turn and feeds the results back into the follow-up response', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({
+      ok: true,
+      route: '/system',
+    })
+    const bridge = createBridgeStub({
+      transcribeAudio: vi.fn().mockResolvedValue('Show me throughput.'),
+      createToolVoiceResponse: vi
+        .fn()
+        .mockResolvedValueOnce({
+          id: 'response-tool-1',
+          outputText: '',
+          output: [
+            {
+              type: 'function_call',
+              call_id: 'call-1',
+              name: 'focus_system_metric',
+              arguments: JSON.stringify({
+                metricKey: 'throughput',
+              }),
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          id: 'response-tool-2',
+          outputText: 'Opening Runtime and highlighting throughput.',
+          output: [],
+        }),
+      synthesizeSpeech: vi.fn().mockResolvedValue({
+        audioBase64: 'ZmFrZQ==',
+        mimeType: 'audio/mpeg',
+      }),
+    })
+    const states: CortexRealtimeState[] = []
+    const { stream } = createMediaStreamStub()
+    const { audioContext } = createAudioContextStub()
     const controller = new CortexRealtimeController(
       {
         api: bridge,
         getSessionRequest: () =>
           buildRealtimeSessionRequest(DEFAULT_FALLBACK_DATA, TEST_VIEW_CONTEXT, 'tool_voice'),
-        onStateChange: vi.fn(),
-        onToolCall: vi.fn(),
+        onStateChange: (state) => {
+          states.push(state)
+        },
+        onToolCall,
       },
       {
         audioContextFactory: () => audioContext,
@@ -578,43 +461,44 @@ describe('CortexRealtimeController', () => {
 
     await controller.start()
 
-    const toolVoiceBlob = {
+    const blob = {
       type: 'audio/webm',
-      arrayBuffer: async () => new TextEncoder().encode('tool-voice').buffer,
+      arrayBuffer: async () => new TextEncoder().encode('tool-call-turn').buffer,
     } as unknown as Blob
 
     await (controller as unknown as {
       processToolVoiceTurn: (blob: Blob, version: number) => Promise<void>
       version: number
-    }).processToolVoiceTurn(
-      toolVoiceBlob,
-      (controller as unknown as { version: number }).version,
-    )
+    }).processToolVoiceTurn(blob, (controller as unknown as { version: number }).version)
 
-    await (controller as unknown as {
-      processToolVoiceTurn: (blob: Blob, version: number) => Promise<void>
-      version: number
-    }).processToolVoiceTurn(
-      toolVoiceBlob,
-      (controller as unknown as { version: number }).version,
-    )
-
-    expect(bridge.createToolVoiceResponse).toHaveBeenNthCalledWith(
-      1,
+    expect(onToolCall).toHaveBeenCalledWith(
       expect.objectContaining({
-        previousResponseId: null,
+        name: 'focus_system_metric',
+        mode: 'tool_voice',
       }),
     )
     expect(bridge.createToolVoiceResponse).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        previousResponseId: 'response-tool-1',
+        input: [
+          expect.objectContaining({
+            type: 'function_call_output',
+            call_id: 'call-1',
+          }),
+        ],
       }),
     )
+    await waitFor(() => {
+      expect(states.at(-1)).toMatchObject({
+        lastToolCall: expect.objectContaining({
+          name: 'focus_system_metric',
+        }),
+        stage: 'speaking',
+      })
+    })
   })
 
-  it('keeps UI director silent while still processing spoken turns', async () => {
-    const { stream } = createMediaStreamStub()
+  it('keeps GUIDE silent while still processing spoken turns', async () => {
     const bridge = createBridgeStub({
       transcribeAudio: vi.fn().mockResolvedValue('Show me queue depth.'),
       createToolVoiceResponse: vi.fn().mockResolvedValue({
@@ -624,125 +508,110 @@ describe('CortexRealtimeController', () => {
       }),
     })
     const states: CortexRealtimeState[] = []
-    const sourceNode = {
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-    } as unknown as MediaStreamAudioSourceNode
-    const analyser = {
-      fftSize: 0,
-      getByteTimeDomainData: vi.fn(),
-    } as unknown as AnalyserNode
-    const audioContext = {
-      createAnalyser: vi.fn(() => analyser),
-      createMediaStreamSource: vi.fn(() => sourceNode),
-      close: vi.fn().mockResolvedValue(undefined),
-    } as unknown as AudioContext
-
-    const controller = new CortexRealtimeController(
-      {
-        api: bridge,
-        getSessionRequest: () =>
-          buildRealtimeSessionRequest(DEFAULT_FALLBACK_DATA, TEST_VIEW_CONTEXT, 'ui_director'),
-        onStateChange: (state) => {
-          states.push(state)
-        },
-        onToolCall: vi.fn(),
-      },
-      {
-        audioContextFactory: () => audioContext,
-        getUserMedia: vi.fn().mockResolvedValue(stream),
-      },
-    )
+    const controller = createController('ui_director', bridge, states)
 
     await controller.start()
 
-    const toolVoiceBlob = {
+    const blob = {
       type: 'audio/webm',
-      arrayBuffer: async () => new TextEncoder().encode('ui-director').buffer,
+      arrayBuffer: async () => new TextEncoder().encode('guide-turn').buffer,
     } as unknown as Blob
 
     await (controller as unknown as {
       processToolVoiceTurn: (blob: Blob, version: number) => Promise<void>
       version: number
-    }).processToolVoiceTurn(
-      toolVoiceBlob,
-      (controller as unknown as { version: number }).version,
-    )
+    }).processToolVoiceTurn(blob, (controller as unknown as { version: number }).version)
 
     expect(bridge.createToolVoiceResponse).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-mini',
+        mode: 'ui_director',
       }),
     )
     expect(bridge.synthesizeSpeech).not.toHaveBeenCalled()
     expect(states.at(-1)).toMatchObject({
       active: true,
       status: 'listening',
+      stage: 'silent_complete',
       visualState: 'on',
     })
   })
 
-  it('transcribes local speech and sends text turns into the live realtime session', async () => {
-    const peerConnection = new FakePeerConnection()
-    const { stream } = createMediaStreamStub()
-    const { audioContext } = createAudioContextStub()
+  it('interrupts PRIME or ECO playback on new speech without tearing down the session', async () => {
     const bridge = createBridgeStub({
-      transcribeAudio: vi.fn().mockResolvedValue('Show me the queue depth.'),
+      abortVoiceTurn: vi.fn().mockResolvedValue({
+        ok: true,
+        aborted: true,
+        abortedStages: ['speaking'],
+        reason: 'barge_in',
+      }),
     })
-
-    const controller = new CortexRealtimeController(
-      {
-        api: bridge,
-        getSessionRequest: () =>
-          buildRealtimeSessionRequest(DEFAULT_FALLBACK_DATA, TEST_VIEW_CONTEXT, 'premium_voice'),
-        onStateChange: vi.fn(),
-        onToolCall: vi.fn(),
-      },
-      {
-        audioContextFactory: () => audioContext,
-        getUserMedia: vi.fn().mockResolvedValue(stream),
-        rtcPeerConnectionFactory: () => peerConnection as unknown as RTCPeerConnection,
-      },
-    )
+    const states: CortexRealtimeState[] = []
+    const controller = createController('lean_voice', bridge, states)
 
     await controller.start()
 
-    const turnBlob = {
-      size: 8,
-      type: 'audio/webm',
-      arrayBuffer: async () => new TextEncoder().encode('voice-turn').buffer,
-    } as unknown as Blob
-
-    await (controller as unknown as {
-      processToolVoiceTurn: (blob: Blob, version: number) => Promise<void>
+    const internal = controller as unknown as {
+      interruptSpeakingTurn: (resources: unknown, version: number, level: number) => Promise<void>
+      startToolVoiceRecorder: (resources: unknown, version: number) => void
+      toolVoiceResources: Record<string, unknown> | null
+      state: CortexRealtimeState
       version: number
-    }).processToolVoiceTurn(turnBlob, (controller as unknown as { version: number }).version)
+    }
 
-    expect(bridge.transcribeAudio).toHaveBeenCalledWith(
+    expect(internal.toolVoiceResources).not.toBeNull()
+    const startRecorderSpy = vi
+      .spyOn(internal, 'startToolVoiceRecorder')
+      .mockImplementation(() => {})
+
+    internal.state = {
+      ...internal.state,
+      active: true,
+      status: 'speaking',
+      stage: 'speaking',
+      sessionAttemptId: 'session-1',
+      turnId: 'turn-1',
+      lastResponsePreview: 'The current queue depth is eleven.',
+    }
+
+    await internal.interruptSpeakingTurn(internal.toolVoiceResources!, internal.version, 40)
+
+    expect(bridge.abortVoiceTurn).toHaveBeenCalledWith({
+      sessionAttemptId: 'session-1',
+      turnId: 'turn-1',
+      reason: 'barge_in',
+    })
+    expect(startRecorderSpy).toHaveBeenCalled()
+    expect(states.at(-1)).toMatchObject({
+      lastInterruptionReason: 'barge_in',
+      lastAbortedStage: 'speaking',
+      lastInterruptedResponsePreview: 'The current queue depth is eleven.',
+    })
+  })
+
+  it('prints milestone console logs when realtime debug is enabled', async () => {
+    vi.stubEnv('VITE_CORTEX_REALTIME_DEBUG', 'true')
+
+    const bridge = createBridgeStub()
+    const states: CortexRealtimeState[] = []
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const controller = createController('premium_voice', bridge, states)
+
+    await controller.start()
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[RT][renderer] Start requested.'),
       expect.objectContaining({
-        model: 'gpt-4o-mini-transcribe',
+        mode: 'premium_voice',
+        runtime: 'voice_pipeline',
       }),
     )
-    expect(
-      peerConnection.dataChannel.sent.some((payload) => {
-        const parsed = JSON.parse(payload)
-        return (
-          parsed.type === 'conversation.item.create' &&
-          parsed.item?.type === 'message' &&
-          parsed.item?.content?.[0]?.type === 'input_text' &&
-          parsed.item?.content?.[0]?.text === 'Show me the queue depth.'
-        )
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[RT][renderer] Starting chained voice pipeline.'),
+      expect.objectContaining({
+        mode: 'premium_voice',
+        runtime: 'voice_pipeline',
       }),
-    ).toBe(true)
-    expect(
-      peerConnection.dataChannel.sent.some((payload) => {
-        const parsed = JSON.parse(payload)
-        return (
-          parsed.type === 'response.create' &&
-          Array.isArray(parsed.response?.output_modalities) &&
-          parsed.response.output_modalities.includes('audio')
-        )
-      }),
-    ).toBe(true)
+    )
   })
 })

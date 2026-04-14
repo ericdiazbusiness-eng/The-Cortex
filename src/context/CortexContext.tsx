@@ -21,11 +21,11 @@ import {
 } from '@/lib/realtime-intent'
 import { getPageMeta, UI_MODE_STORAGE_KEY, type UiMode } from '@/lib/ui-mode'
 import {
-  CORTEX_REALTIME_MODE_PROFILES,
   DEFAULT_REALTIME_MODE,
   DEFAULT_REALTIME_STATE,
   DEFAULT_UI_FOCUS,
   REALTIME_MODE_STORAGE_KEY,
+  getRealtimeModeProfiles,
   type CortexCommandResult,
   type CortexDashboardSnapshot,
   type CortexRealtimeMode,
@@ -37,6 +37,7 @@ import {
   type CortexUiFocus,
   type CortexViewContext,
   type CortexViewContextValue,
+  resolveStoredRealtimeMode,
 } from '@/shared/cortex'
 
 type ViewContextUpdate = Partial<Omit<CortexViewContext, 'details'>> & {
@@ -98,11 +99,7 @@ const getInitialRealtimeMode = (): CortexRealtimeMode => {
       ? storage.getItem(REALTIME_MODE_STORAGE_KEY)
       : null
 
-  if (stored && stored in CORTEX_REALTIME_MODE_PROFILES) {
-    return stored as CortexRealtimeMode
-  }
-
-  return DEFAULT_REALTIME_MODE
+  return resolveStoredRealtimeMode(stored)
 }
 
 const buildInitialViewContext = (uiMode: UiMode): CortexViewContext => {
@@ -208,7 +205,7 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window !== 'undefined') {
       const storage = window.localStorage
       if (storage && typeof storage.setItem === 'function') {
-        storage.setItem(REALTIME_MODE_STORAGE_KEY, realtimeMode)
+        storage.setItem(REALTIME_MODE_STORAGE_KEY, resolveStoredRealtimeMode(realtimeMode))
       }
     }
   }, [realtimeMode])
@@ -255,7 +252,8 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
 
   const handleRealtimeToolCall = useEffectEvent(async (toolCall: CortexRealtimeToolCall) => {
     const currentSnapshot = await getLiveSnapshot()
-    const isUiDirector = realtimeMode === 'ui_director'
+    const activeRealtimeMode = toolCall.mode ?? realtimeMode
+    const isUiDirector = activeRealtimeMode === 'ui_director'
     const transcript = toolCall.transcript ?? null
 
     if (isUiDirector && isUiActionToolName(toolCall.name) && !hasExplicitUiNavigationIntent(transcript)) {
@@ -311,10 +309,10 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
         return currentSnapshot.logs.slice(0, limit)
       }
       case 'get_ui_context':
-        return {
+      return {
           viewContext,
           uiFocus,
-          realtimeMode,
+          realtimeMode: activeRealtimeMode,
         }
       case 'navigate_ui': {
         const route = normalizeString(toolCall.arguments.route) as CortexRoute | null
@@ -460,7 +458,7 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
             source: 'realtime',
             note: contextNote,
             viewContext,
-            realtimeMode,
+            realtimeMode: activeRealtimeMode,
           }),
         )
       }
@@ -527,16 +525,17 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [])
 
-  useEffect(() => {
-    void realtimeControllerRef.current?.syncSession()
-  }, [snapshot, viewContext])
-
   const setUiMode = useCallback((mode: UiMode) => {
     setUiModeState(mode)
   }, [])
 
   const setRealtimeMode = useCallback((mode: CortexRealtimeMode) => {
-    setRealtimeModeState(mode)
+    const nextMode = resolveStoredRealtimeMode(mode)
+    if (!(nextMode in getRealtimeModeProfiles())) {
+      return
+    }
+
+    setRealtimeModeState(nextMode)
   }, [])
 
   const toggleUiMode = useCallback(() => {

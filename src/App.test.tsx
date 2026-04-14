@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { act, useEffect } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
@@ -15,6 +15,7 @@ import {
   DEFAULT_FALLBACK_DATA,
   REALTIME_MODE_STORAGE_KEY,
   type CortexBridge,
+  type CortexRealtimeDebugEntry,
 } from '@/shared/cortex'
 import { UI_MODE_STORAGE_KEY } from '@/lib/ui-mode'
 
@@ -97,8 +98,17 @@ describe('The Cortex app', () => {
         audioBase64: '',
         mimeType: 'audio/mpeg',
       }),
+      abortVoiceTurn: vi.fn().mockResolvedValue({
+        ok: true,
+        aborted: false,
+        abortedStages: [],
+        reason: 'none',
+      }),
       recordRealtimeLog: vi.fn().mockResolvedValue(undefined),
+      getRealtimeDebugEntries: vi.fn().mockResolvedValue([]),
+      recordRealtimeDebug: vi.fn().mockResolvedValue(undefined),
       subscribeToEvents: vi.fn().mockImplementation(() => () => {}),
+      subscribeToRealtimeDebug: vi.fn().mockImplementation(() => () => {}),
     }
 
     window.cortexApi = api
@@ -106,6 +116,7 @@ describe('The Cortex app', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllEnvs()
     delete window.cortexApi
     clearStoredMode()
     window.location.hash = '#/'
@@ -213,22 +224,63 @@ describe('The Cortex app', () => {
     expect(screen.queryByText('Premium voice mode')).not.toBeInTheDocument()
 
     const premium = screen.getByRole('radio', { name: /premium voice mode/i })
+    const neural = screen.getByRole('radio', { name: /neural voice mode/i })
     const lean = screen.getByRole('radio', { name: /lean voice mode/i })
-    const tool = screen.getByRole('radio', { name: /tool voice mode/i })
     const director = screen.getByRole('radio', { name: /ui director mode/i })
 
     expect(premium).toHaveAttribute('aria-checked', 'true')
+    expect(neural).toHaveAttribute('aria-checked', 'false')
     expect(lean).toHaveAttribute('aria-checked', 'false')
-    expect(tool).toHaveAttribute('aria-checked', 'false')
     expect(director).toHaveAttribute('aria-checked', 'false')
 
-    await user.click(lean)
+    await user.click(neural)
 
     expect(premium).toHaveAttribute('aria-checked', 'false')
-    expect(lean).toHaveAttribute('aria-checked', 'true')
-    expect(tool).toHaveAttribute('aria-checked', 'false')
+    expect(neural).toHaveAttribute('aria-checked', 'true')
+    expect(lean).toHaveAttribute('aria-checked', 'false')
     expect(director).toHaveAttribute('aria-checked', 'false')
+    expect(window.localStorage?.getItem?.(REALTIME_MODE_STORAGE_KEY)).toBe('neural_voice')
+  })
+
+  it('migrates the stored VECTOR profile into ECO in the default three-mode set', async () => {
+    const user = userEvent.setup()
+    window.localStorage?.setItem?.(REALTIME_MODE_STORAGE_KEY, 'tool_voice')
+
+    render(<App />)
+
+    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
+    const lean = screen.getByRole('radio', { name: /lean voice mode/i })
+
+    expect(lean).toHaveAttribute('aria-checked', 'true')
     expect(window.localStorage?.getItem?.(REALTIME_MODE_STORAGE_KEY)).toBe('lean_voice')
+
+    await user.click(screen.getByRole('radio', { name: /ui director mode/i }))
+    expect(window.localStorage?.getItem?.(REALTIME_MODE_STORAGE_KEY)).toBe('ui_director')
+  })
+
+  it('can restore the legacy four-profile strip with the internal profile-set flag', async () => {
+    vi.stubEnv('VITE_CORTEX_PROFILE_SET', 'legacy_four_mode')
+
+    render(<App />)
+
+    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
+    expect(screen.getAllByRole('radio')).toHaveLength(5)
+    expect(screen.getByRole('radio', { name: /tool voice mode/i })).toBeInTheDocument()
+  })
+
+  it('keeps the overview surface clean when NEURAL is selected', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: /neural voice mode/i }))
+
+    expect(screen.getByText('Hello Zaidek')).toBeInTheDocument()
+    expect(screen.queryByText(/suggested voice stack/i)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/NEURAL pairs ElevenLabs identity with a cheaper OpenAI brain/i),
+    ).not.toBeInTheDocument()
   })
 
   it('briefly flashes a one-word mode indicator when a realtime mode is chosen', async () => {
@@ -251,13 +303,90 @@ describe('The Cortex app', () => {
 
     expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('radio', { name: /tool voice mode/i }))
+    await user.click(screen.getByRole('radio', { name: /lean voice mode/i }))
 
-    expect(screen.getByRole('radio', { name: /tool voice mode/i })).toHaveAttribute(
+    expect(screen.getByRole('radio', { name: /lean voice mode/i })).toHaveAttribute(
       'aria-checked',
       'true',
     )
-    expect(screen.getByText('VECTOR')).toBeInTheDocument()
+    expect(screen.getByText('ECO')).toBeInTheDocument()
+  })
+
+  it('mounts the animated canvas only on the overview route', async () => {
+    const user = userEvent.setup()
+    const view = render(<App />)
+
+    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
+    expect(view.container.querySelector('.circuit-canvas')).not.toBeNull()
+    expect(view.container.querySelector('.page-backdrop-static')).toBeNull()
+
+    await user.click(screen.getByRole('link', { name: /Ops Memory/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Central memory stream')).toBeInTheDocument()
+      expect(view.container.querySelector('.circuit-canvas')).toBeNull()
+      expect(view.container.querySelector('.page-backdrop-static')).not.toBeNull()
+    })
+  })
+
+  it('renders the standalone realtime debug route and streams live entries', async () => {
+    const debugEntry: CortexRealtimeDebugEntry = {
+      id: 'debug-1',
+      timestamp: '2026-04-07T16:05:00.000Z',
+      source: 'main',
+      level: 'warn',
+      message: 'Realtime peer connection failed before becoming ready.',
+      context: {
+        mode: 'premium_voice',
+      },
+    }
+    let debugListener: ((entry: CortexRealtimeDebugEntry) => void) | null = null
+
+    window.location.hash = '#/debug'
+    window.cortexApi = {
+      ...window.cortexApi!,
+      getRealtimeDebugEntries: vi.fn().mockResolvedValue([debugEntry]),
+      subscribeToRealtimeDebug: vi.fn().mockImplementation((listener) => {
+        debugListener = listener
+        return () => {
+          debugListener = null
+        }
+      }),
+    }
+
+    render(<App />)
+
+    expect(await screen.findByText('Milestone Grid')).toBeInTheDocument()
+    expect(
+      await screen.findAllByText('Realtime peer connection failed before becoming ready.'),
+    ).not.toHaveLength(0)
+    expect(screen.getByText('Recent activity')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()
+    const exportBox = screen.getByRole('textbox') as HTMLTextAreaElement
+    expect(exportBox.value).toContain(
+      'PRIME | MAIN | WARN | Realtime peer connection failed before becoming ready.',
+    )
+    expect(exportBox.value).not.toContain('{"timestamp"')
+
+    const listener = debugListener
+    if (listener) {
+      await act(async () => {
+        ;(listener as (entry: CortexRealtimeDebugEntry) => void)({
+          id: 'debug-2',
+          timestamp: '2026-04-07T16:05:02.000Z',
+          source: 'renderer',
+          level: 'warn',
+          message: 'Realtime user turn sent to the live session.',
+          context: {
+            status: 'executing',
+          },
+        })
+      })
+    }
+
+    expect(
+      await screen.findAllByText('Realtime user turn sent to the live session.'),
+    ).not.toHaveLength(0)
   })
 
   it('navigates to the marketing lane and highlights the requested metric when UI focus updates', async () => {

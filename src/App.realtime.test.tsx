@@ -4,65 +4,6 @@ import App from './App'
 import { DEFAULT_FALLBACK_DATA, type CortexBridge } from '@/shared/cortex'
 import { UI_MODE_STORAGE_KEY } from '@/lib/ui-mode'
 
-class FakeDataChannel extends EventTarget {
-  readyState: RTCDataChannelState = 'connecting'
-
-  send = vi.fn()
-
-  close() {
-    this.readyState = 'closed'
-    this.dispatchEvent(new Event('close'))
-  }
-
-  open() {
-    this.readyState = 'open'
-    this.dispatchEvent(new Event('open'))
-  }
-}
-
-class FakePeerConnection extends EventTarget {
-  readonly dataChannel = new FakeDataChannel()
-
-  readonly addTrack = vi.fn()
-
-  readonly close = vi.fn(() => {
-    this.signalingState = 'closed'
-  })
-
-  readonly createDataChannel = vi.fn(() => this.dataChannel)
-
-  readonly createOffer = vi.fn(async () => ({
-    sdp: 'offer-sdp',
-    type: 'offer',
-  }))
-
-  readonly setLocalDescription = vi.fn(async (description) => {
-    this.localDescription = description
-    this.iceGatheringState = 'complete'
-    this.dispatchEvent(new Event('icegatheringstatechange'))
-  })
-
-  readonly setRemoteDescription = vi.fn(async () => {
-    this.connectionState = 'connected'
-    this.iceConnectionState = 'connected'
-    this.dispatchEvent(new Event('connectionstatechange'))
-    this.dispatchEvent(new Event('iceconnectionstatechange'))
-    this.dataChannel.open()
-  })
-
-  connectionState: RTCPeerConnectionState = 'new'
-
-  iceConnectionState: RTCIceConnectionState = 'new'
-
-  iceGatheringState: RTCIceGatheringState = 'new'
-
-  localDescription: RTCSessionDescriptionInit | null = null
-
-  ontrack: ((event: RTCTrackEvent) => void) | null = null
-
-  signalingState: RTCSignalingState = 'stable'
-}
-
 const clone = <T,>(value: T) => JSON.parse(JSON.stringify(value)) as T
 
 const createMediaStreamStub = () => {
@@ -78,6 +19,75 @@ const createMediaStreamStub = () => {
   }
 }
 
+const installAudioContextStub = () => {
+  const sourceNode = {
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+  }
+  const analyser = {
+    fftSize: 0,
+    getByteTimeDomainData: vi.fn((buffer: Uint8Array) => buffer.fill(128)),
+  }
+
+  class MockAudioContext {
+    state: AudioContextState = 'running'
+
+    createAnalyser() {
+      return analyser as unknown as AnalyserNode
+    }
+
+    createMediaStreamSource() {
+      return sourceNode as unknown as MediaStreamAudioSourceNode
+    }
+
+    close() {
+      return Promise.resolve()
+    }
+  }
+
+  vi.stubGlobal('AudioContext', MockAudioContext)
+}
+
+const createApiStub = (overrides: Partial<CortexBridge> = {}): CortexBridge => ({
+  getDashboardSnapshot: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA)),
+  listAgents: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.agents)),
+  listMemories: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.memories)),
+  listSchedules: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.jobs)),
+  listLogs: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.logs)),
+  runCommand: vi.fn().mockResolvedValue({
+    commandId: 'run-ops-sync',
+    ok: true,
+    exitCode: 0,
+    stdout: 'ok',
+    stderr: '',
+    ranAt: new Date().toISOString(),
+    durationMs: 80,
+  }),
+  createRealtimeCall: vi.fn().mockResolvedValue('answer-sdp'),
+  transcribeAudio: vi.fn().mockResolvedValue(''),
+  createToolVoiceResponse: vi.fn().mockResolvedValue({
+    id: 'response-1',
+    outputText: '',
+    output: [],
+  }),
+  synthesizeSpeech: vi.fn().mockResolvedValue({
+    audioBase64: '',
+    mimeType: 'audio/mpeg',
+  }),
+  abortVoiceTurn: vi.fn().mockResolvedValue({
+    ok: true,
+    aborted: false,
+    abortedStages: [],
+    reason: 'none',
+  }),
+  recordRealtimeLog: vi.fn().mockResolvedValue(undefined),
+  getRealtimeDebugEntries: vi.fn().mockResolvedValue([]),
+  recordRealtimeDebug: vi.fn().mockResolvedValue(undefined),
+  subscribeToEvents: vi.fn().mockImplementation(() => () => {}),
+  subscribeToRealtimeDebug: vi.fn().mockImplementation(() => () => {}),
+  ...overrides,
+})
+
 const clearStoredMode = () => {
   window.localStorage?.removeItem?.(UI_MODE_STORAGE_KEY)
 }
@@ -87,6 +97,7 @@ describe('The Cortex realtime voice flow', () => {
     clearStoredMode()
     window.location.hash = '#/'
     vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    installAudioContextStub()
   })
 
   afterEach(() => {
@@ -99,45 +110,10 @@ describe('The Cortex realtime voice flow', () => {
 
   it('keeps the realtime session alive across route changes and returns to idle on stop', async () => {
     const user = userEvent.setup()
-    const peerConnection = new FakePeerConnection()
     const media = createMediaStreamStub()
-    const api: CortexBridge = {
-      getDashboardSnapshot: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA)),
-      listAgents: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.agents)),
-      listMemories: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.memories)),
-      listSchedules: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.jobs)),
-      listLogs: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.logs)),
-      runCommand: vi.fn().mockResolvedValue({
-        commandId: 'run-ops-sync',
-        ok: true,
-        exitCode: 0,
-        stdout: 'ok',
-        stderr: '',
-        ranAt: new Date().toISOString(),
-        durationMs: 80,
-      }),
-      createRealtimeCall: vi.fn().mockResolvedValue('answer-sdp'),
-      transcribeAudio: vi.fn().mockResolvedValue(''),
-      createToolVoiceResponse: vi.fn().mockResolvedValue({
-        id: 'response-1',
-        outputText: '',
-        output: [],
-      }),
-      synthesizeSpeech: vi.fn().mockResolvedValue({
-        audioBase64: '',
-        mimeType: 'audio/mpeg',
-      }),
-      recordRealtimeLog: vi.fn().mockResolvedValue(undefined),
-      subscribeToEvents: vi.fn().mockImplementation(() => () => {}),
-    }
+    const api = createApiStub()
 
     window.cortexApi = api
-    vi.stubGlobal(
-      'RTCPeerConnection',
-      function MockRTCPeerConnection() {
-        return peerConnection as unknown as RTCPeerConnection
-      },
-    )
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
       value: {
@@ -183,51 +159,15 @@ describe('The Cortex realtime voice flow', () => {
 
   it('returns the neural interface to its idle visual state after a realtime bootstrap failure', async () => {
     const user = userEvent.setup()
-    const peerConnection = new FakePeerConnection()
-    const media = createMediaStreamStub()
-    const api: CortexBridge = {
+    const api = createApiStub({
       getDashboardSnapshot: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA)),
-      listAgents: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.agents)),
-      listMemories: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.memories)),
-      listSchedules: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.jobs)),
-      listLogs: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.logs)),
-      runCommand: vi.fn().mockResolvedValue({
-        commandId: 'run-ops-sync',
-        ok: true,
-        exitCode: 0,
-        stdout: 'ok',
-        stderr: '',
-        ranAt: new Date().toISOString(),
-        durationMs: 80,
-      }),
-      createRealtimeCall: vi
-        .fn()
-        .mockRejectedValue(new Error('Missing OPENAI_API_KEY for realtime voice.')),
-      transcribeAudio: vi.fn().mockResolvedValue(''),
-      createToolVoiceResponse: vi.fn().mockResolvedValue({
-        id: 'response-1',
-        outputText: '',
-        output: [],
-      }),
-      synthesizeSpeech: vi.fn().mockResolvedValue({
-        audioBase64: '',
-        mimeType: 'audio/mpeg',
-      }),
-      recordRealtimeLog: vi.fn().mockResolvedValue(undefined),
-      subscribeToEvents: vi.fn().mockImplementation(() => () => {}),
-    }
+    })
 
     window.cortexApi = api
-    vi.stubGlobal(
-      'RTCPeerConnection',
-      function MockRTCPeerConnection() {
-        return peerConnection as unknown as RTCPeerConnection
-      },
-    )
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
       value: {
-        getUserMedia: vi.fn().mockResolvedValue(media.stream),
+        getUserMedia: vi.fn().mockRejectedValue(new Error('Microphone access denied.')),
       },
     })
 
@@ -245,45 +185,10 @@ describe('The Cortex realtime voice flow', () => {
 
   it('keeps the live realtime session running when the mode toggle changes', async () => {
     const user = userEvent.setup()
-    const peerConnection = new FakePeerConnection()
     const media = createMediaStreamStub()
-    const api: CortexBridge = {
-      getDashboardSnapshot: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA)),
-      listAgents: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.agents)),
-      listMemories: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.memories)),
-      listSchedules: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.jobs)),
-      listLogs: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.logs)),
-      runCommand: vi.fn().mockResolvedValue({
-        commandId: 'run-ops-sync',
-        ok: true,
-        exitCode: 0,
-        stdout: 'ok',
-        stderr: '',
-        ranAt: new Date().toISOString(),
-        durationMs: 80,
-      }),
-      createRealtimeCall: vi.fn().mockResolvedValue('answer-sdp'),
-      transcribeAudio: vi.fn().mockResolvedValue(''),
-      createToolVoiceResponse: vi.fn().mockResolvedValue({
-        id: 'response-1',
-        outputText: '',
-        output: [],
-      }),
-      synthesizeSpeech: vi.fn().mockResolvedValue({
-        audioBase64: '',
-        mimeType: 'audio/mpeg',
-      }),
-      recordRealtimeLog: vi.fn().mockResolvedValue(undefined),
-      subscribeToEvents: vi.fn().mockImplementation(() => () => {}),
-    }
+    const api = createApiStub()
 
     window.cortexApi = api
-    vi.stubGlobal(
-      'RTCPeerConnection',
-      function MockRTCPeerConnection() {
-        return peerConnection as unknown as RTCPeerConnection
-      },
-    )
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
       value: {
@@ -308,53 +213,18 @@ describe('The Cortex realtime voice flow', () => {
       'aria-pressed',
       'true',
     )
-    expect(api.createRealtimeCall).toHaveBeenCalledTimes(1)
+    expect(api.createRealtimeCall).not.toHaveBeenCalled()
   })
 
   it('can start realtime after the Electron bridge becomes available post-render', async () => {
     const user = userEvent.setup()
-    const peerConnection = new FakePeerConnection()
     const media = createMediaStreamStub()
 
     render(<App />)
 
-    const api: CortexBridge = {
-      getDashboardSnapshot: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA)),
-      listAgents: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.agents)),
-      listMemories: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.memories)),
-      listSchedules: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.jobs)),
-      listLogs: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.logs)),
-      runCommand: vi.fn().mockResolvedValue({
-        commandId: 'run-ops-sync',
-        ok: true,
-        exitCode: 0,
-        stdout: 'ok',
-        stderr: '',
-        ranAt: new Date().toISOString(),
-        durationMs: 80,
-      }),
-      createRealtimeCall: vi.fn().mockResolvedValue('answer-sdp'),
-      transcribeAudio: vi.fn().mockResolvedValue(''),
-      createToolVoiceResponse: vi.fn().mockResolvedValue({
-        id: 'response-1',
-        outputText: '',
-        output: [],
-      }),
-      synthesizeSpeech: vi.fn().mockResolvedValue({
-        audioBase64: '',
-        mimeType: 'audio/mpeg',
-      }),
-      recordRealtimeLog: vi.fn().mockResolvedValue(undefined),
-      subscribeToEvents: vi.fn().mockImplementation(() => () => {}),
-    }
+    const api = createApiStub()
 
     window.cortexApi = api
-    vi.stubGlobal(
-      'RTCPeerConnection',
-      function MockRTCPeerConnection() {
-        return peerConnection as unknown as RTCPeerConnection
-      },
-    )
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
       value: {
@@ -370,6 +240,6 @@ describe('The Cortex realtime voice flow', () => {
         'on',
       )
     })
-    expect(api.createRealtimeCall).toHaveBeenCalledTimes(1)
+    expect(api.createRealtimeCall).not.toHaveBeenCalled()
   })
 })
