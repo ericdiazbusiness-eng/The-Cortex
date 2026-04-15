@@ -16,6 +16,8 @@ const cortexApi: CortexBridge = {
   createRealtimeCall: (offerSdp, payload) =>
     ipcRenderer.invoke('cortex:createRealtimeCall', offerSdp, payload),
   transcribeAudio: (payload) => ipcRenderer.invoke('cortex:transcribeAudio', payload),
+  createRealtimeTranscriptionToken: (payload) =>
+    ipcRenderer.invoke('cortex:createRealtimeTranscriptionToken', payload),
   createToolVoiceResponse: (payload) =>
     ipcRenderer.invoke('cortex:createToolVoiceResponse', payload),
   synthesizeSpeech: (payload) => ipcRenderer.invoke('cortex:synthesizeSpeech', payload),

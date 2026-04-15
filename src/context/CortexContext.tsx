@@ -3,7 +3,6 @@ import {
   createContext,
   startTransition,
   useEffect,
-  useEffectEvent,
   useRef,
   useState,
   type ReactNode,
@@ -141,13 +140,17 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
   )
   const api = getCortexApi()
   const realtimeControllerRef = useRef<CortexRealtimeController | null>(null)
+  const snapshotRef = useRef<CortexDashboardSnapshot | null>(snapshot)
+  const viewContextRef = useRef<CortexViewContext>(viewContext)
+  const uiFocusRef = useRef<CortexUiFocus>(uiFocus)
+  const realtimeModeRef = useRef<CortexRealtimeMode>(realtimeMode)
 
   const refresh = useCallback(async () => {
     const next = await api.getDashboardSnapshot()
     setSnapshot(next)
   }, [api])
 
-  const applyEvent = useEffectEvent((event: CortexStreamEvent) => {
+  const applyEvent = useCallback((event: CortexStreamEvent) => {
     startTransition(() => {
       setSnapshot((current) => {
         if (!current) {
@@ -172,7 +175,7 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
         return current
       })
     })
-  })
+  }, [])
 
   useEffect(() => {
     let isCancelled = false
@@ -211,14 +214,11 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
   }, [realtimeMode])
 
   useEffect(() => {
-    const pageMeta = getPageMeta(uiMode, viewContext.route)
-    setViewContextState((current) => ({
-      ...current,
-      uiMode,
-      routeTitle: pageMeta.title,
-      routeSubtitle: pageMeta.subtitle,
-    }))
-  }, [uiMode, viewContext.route])
+    snapshotRef.current = snapshot
+    viewContextRef.current = viewContext
+    uiFocusRef.current = uiFocus
+    realtimeModeRef.current = realtimeMode
+  }, [realtimeMode, snapshot, uiFocus, viewContext])
 
   const runCommand = useCallback(async (commandId: string, context?: string) => {
     const result = await api.runCommand(commandId, context)
@@ -248,11 +248,14 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
     }))
   }, [])
 
-  const getLiveSnapshot = useEffectEvent(async () => snapshot ?? api.getDashboardSnapshot())
+  const getLiveSnapshot = useCallback(
+    async () => snapshotRef.current ?? api.getDashboardSnapshot(),
+    [api],
+  )
 
-  const handleRealtimeToolCall = useEffectEvent(async (toolCall: CortexRealtimeToolCall) => {
+  const handleRealtimeToolCall = useCallback(async (toolCall: CortexRealtimeToolCall) => {
     const currentSnapshot = await getLiveSnapshot()
-    const activeRealtimeMode = toolCall.mode ?? realtimeMode
+    const activeRealtimeMode = toolCall.mode ?? realtimeModeRef.current
     const isUiDirector = activeRealtimeMode === 'ui_director'
     const transcript = toolCall.transcript ?? null
 
@@ -309,9 +312,9 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
         return currentSnapshot.logs.slice(0, limit)
       }
       case 'get_ui_context':
-      return {
-          viewContext,
-          uiFocus,
+        return {
+          viewContext: viewContextRef.current,
+          uiFocus: uiFocusRef.current,
           realtimeMode: activeRealtimeMode,
         }
       case 'navigate_ui': {
@@ -457,7 +460,7 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
           JSON.stringify({
             source: 'realtime',
             note: contextNote,
-            viewContext,
+            viewContext: viewContextRef.current,
             realtimeMode: activeRealtimeMode,
           }),
         )
@@ -465,26 +468,21 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
       default:
         throw new Error(`Unknown realtime tool requested: ${toolCall.name}`)
     }
-  })
+  }, [focusUi, getLiveSnapshot, navigateUi, runCommand])
 
-  const getRealtimeSessionRequest = useEffectEvent(() =>
-    buildRealtimeSessionRequest(snapshot, viewContext, realtimeMode),
+  const getRealtimeSessionRequest = useCallback(
+    () =>
+      buildRealtimeSessionRequest(
+        snapshotRef.current,
+        viewContextRef.current,
+        realtimeModeRef.current,
+      ),
+    [],
   )
 
-  const handleRealtimeStateChange = useEffectEvent((nextState: CortexRealtimeState) => {
+  const handleRealtimeStateChange = useCallback((nextState: CortexRealtimeState) => {
     setRealtime(nextState)
-  })
-
-  const createRealtimeController = useEffectEvent((bridgeApi: ReturnType<typeof getCortexApi>) => {
-    return new CortexRealtimeController({
-      api: bridgeApi,
-      getSessionRequest: () => getRealtimeSessionRequest(),
-      onStateChange: (nextState) => {
-        handleRealtimeStateChange(nextState)
-      },
-      onToolCall: (toolCall) => handleRealtimeToolCall(toolCall),
-    })
-  })
+  }, [])
 
   const ensureRealtimeController = useCallback(() => {
     if (realtimeControllerRef.current) {
@@ -495,10 +493,17 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
       return null
     }
 
-    const controller = createRealtimeController(getCortexApi())
+    const controller = new CortexRealtimeController({
+      api: getCortexApi(),
+      getSessionRequest: () => getRealtimeSessionRequest(),
+      onStateChange: (nextState) => {
+        handleRealtimeStateChange(nextState)
+      },
+      onToolCall: (toolCall) => handleRealtimeToolCall(toolCall),
+    })
     realtimeControllerRef.current = controller
     return controller
-  }, [createRealtimeController])
+  }, [getRealtimeSessionRequest, handleRealtimeStateChange, handleRealtimeToolCall])
 
   useEffect(() => {
     return () => {
@@ -548,6 +553,15 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
     setViewContextState((current) => ({
       ...current,
       ...partial,
+      uiMode: partial.uiMode ?? current.uiMode,
+      routeTitle:
+        partial.routeTitle ??
+        (partial.route ? getPageMeta(partial.uiMode ?? current.uiMode, partial.route).title : current.routeTitle),
+      routeSubtitle:
+        partial.routeSubtitle ??
+        (partial.route
+          ? getPageMeta(partial.uiMode ?? current.uiMode, partial.route).subtitle
+          : current.routeSubtitle),
       details: partial.details ?? current.details,
     }))
   }, [])

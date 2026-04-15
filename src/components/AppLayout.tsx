@@ -24,6 +24,7 @@ const MODE_FLASH_MS = 900
 export const AppLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const locationPathRef = useRef(location.pathname)
   const modeFlashTickRef = useRef(0)
   const [modeFlash, setModeFlash] = useState<{
     mode: CortexRealtimeMode
@@ -32,6 +33,7 @@ export const AppLayout = () => {
   } | null>(null)
   const modeFlashTimeoutRef = useRef<number | null>(null)
   const {
+    navigateUi,
     realtimeMode,
     setRealtimeMode,
     uiFocus,
@@ -55,10 +57,14 @@ export const AppLayout = () => {
   }, [currentRoute, setViewContext, uiMode])
 
   useEffect(() => {
-    if (uiFocus.route && uiFocus.route !== location.pathname) {
+    locationPathRef.current = location.pathname
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (uiFocus.route && uiFocus.route !== locationPathRef.current) {
       navigate(uiFocus.route)
     }
-  }, [location.pathname, navigate, uiFocus.revision, uiFocus.route])
+  }, [navigate, uiFocus.revision, uiFocus.route])
 
   useEffect(() => {
     return () => {
@@ -95,6 +101,7 @@ export const AppLayout = () => {
       className="app-shell"
       data-mode={uiMode}
       data-background-scope={isOverview ? 'overview' : 'page'}
+      data-active-scene={isOverview ? 'overview' : 'route'}
     >
       {isOverview ? (
         <AnimatedBackground mode={uiMode} />
@@ -170,18 +177,23 @@ export const AppLayout = () => {
           </div>
         </header>
 
-        <AnimatePresence mode="wait">
-          <motion.main
-            key={location.pathname}
-            className={`page-shell${isOverview ? ' page-shell-overview' : ''}`}
-            initial={isOverview ? { opacity: 0 } : { opacity: 0, y: 20 }}
-            animate={isOverview ? { opacity: 1 } : { opacity: 1, y: 0 }}
-            exit={isOverview ? { opacity: 0 } : { opacity: 0, y: -10 }}
-            transition={{ duration: isOverview ? 0.22 : 0.35, ease: 'easeOut' }}
-          >
-            <Outlet />
-          </motion.main>
-        </AnimatePresence>
+        <div
+          className={`page-viewport${isOverview ? ' page-viewport-overview' : ''}`}
+          data-scene-runtime={isOverview ? 'overview' : 'route'}
+        >
+          <AnimatePresence mode="wait">
+            <motion.main
+              key={location.pathname}
+              className={`page-shell${isOverview ? ' page-shell-overview' : ''}`}
+              initial={isOverview ? { opacity: 0 } : { opacity: 0, y: 20 }}
+              animate={isOverview ? { opacity: 1 } : { opacity: 1, y: 0 }}
+              exit={isOverview ? { opacity: 0 } : { opacity: 0, y: -10 }}
+              transition={{ duration: isOverview ? 0.22 : 0.35, ease: 'easeOut' }}
+            >
+              <Outlet />
+            </motion.main>
+          </AnimatePresence>
+        </div>
       </div>
 
       <nav className="bottom-dock" aria-label="Main navigation">
@@ -193,6 +205,7 @@ export const AppLayout = () => {
               end={item.path === '/'}
               className={({ isActive }) => `dock-item${isActive ? ' is-active' : ''}`}
               aria-label={item.label}
+              onClick={() => navigateUi(item.path as CortexRoute)}
             >
               {({ isActive }) => (
                 <>

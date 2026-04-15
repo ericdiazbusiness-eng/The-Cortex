@@ -3,6 +3,8 @@ import type {
   CortexAbortVoiceTurnResult,
   CortexAudioTranscriptionRequest,
   CortexPronunciationDictionaryLocator,
+  CortexRealtimeTranscriptionTokenRequest,
+  CortexRealtimeTranscriptionTokenResult,
   CortexRealtimeDebugEntryInput,
   CortexSpeechSynthesisRequest,
   CortexSpeechSynthesisResult,
@@ -16,6 +18,7 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
 const OPENAI_TRANSCRIPTIONS_URL = 'https://api.openai.com/v1/audio/transcriptions'
 const OPENAI_SPEECH_URL = 'https://api.openai.com/v1/audio/speech'
 const ELEVENLABS_TRANSCRIPTIONS_URL = 'https://api.elevenlabs.io/v1/speech-to-text'
+const ELEVENLABS_SINGLE_USE_TOKEN_URL = 'https://api.elevenlabs.io/v1/single-use-token'
 const ELEVENLABS_SPEECH_URL = 'https://api.elevenlabs.io/v1/text-to-speech'
 const ELEVENLABS_VOICE_PLACEHOLDER = 'elevenlabs-custom'
 const VOICE_TURN_ABORT_ERROR_PREFIX = 'VOICE_TURN_ABORTED'
@@ -613,6 +616,81 @@ export const transcribeAudioInput = async (
     ...payload,
     provider: 'openai',
   })
+}
+
+export const createRealtimeTranscriptionToken = async (
+  payload: CortexRealtimeTranscriptionTokenRequest = {},
+): Promise<CortexRealtimeTranscriptionTokenResult> => {
+  const apiKey = getElevenLabsApiKey()
+  if (!apiKey) {
+    throw new Error('Missing ELEVENLABS_API_KEY for neural realtime transcription.')
+  }
+
+  const purpose = payload.purpose?.trim() || 'realtime_scribe'
+
+  reportToolVoiceDebug(
+    'log',
+    'ElevenLabs realtime transcription token request started.',
+    {
+      purpose,
+    },
+    {
+      mode: payload.mode,
+      stage: 'ready',
+    },
+  )
+
+  const response = await fetch(
+    `${ELEVENLABS_SINGLE_USE_TOKEN_URL}/${encodeURIComponent(purpose)}`,
+    {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+      },
+    },
+  )
+
+  const data = (await response.json().catch(() => null)) as Record<string, unknown> | null
+  if (!response.ok || !data || typeof data.token !== 'string' || !data.token.trim()) {
+    reportToolVoiceDebug(
+      'error',
+      `ElevenLabs realtime transcription token request failed (${response.status}).`,
+      data ?? undefined,
+      {
+        errorCode: 'elevenlabs_request_failed',
+        mode: payload.mode,
+        stage: 'ready',
+      },
+    )
+    throw new Error(
+      `ElevenLabs realtime transcription token request failed (${response.status}): ${
+        JSON.stringify(data) || response.statusText
+      }`,
+    )
+  }
+
+  const expiresAt =
+    typeof data.expires_at_unix_secs === 'number'
+      ? new Date(data.expires_at_unix_secs * 1000).toISOString()
+      : null
+
+  reportToolVoiceDebug(
+    'log',
+    'ElevenLabs realtime transcription token request completed.',
+    {
+      expiresAt,
+      purpose,
+    },
+    {
+      mode: payload.mode,
+      stage: 'ready',
+    },
+  )
+
+  return {
+    token: data.token.trim(),
+    expiresAt,
+  }
 }
 
 export const createToolVoiceResponse = async (

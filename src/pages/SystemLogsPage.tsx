@@ -3,6 +3,7 @@ import { Panel } from '@/components/Panel'
 import { formatTimestamp, percent } from '@/lib/formatters'
 import { useCortex } from '@/hooks/useCortex'
 import { getModeContent } from '@/lib/ui-mode'
+import { hasLiveDashboardData } from '@/lib/runtime-data'
 
 export const SystemLogsPage = () => {
   const { lastCommandResult, setViewContext, snapshot, uiFocus, uiMode } = useCortex()
@@ -26,9 +27,27 @@ export const SystemLogsPage = () => {
     return <div className="loading-state">{content.system.loading}</div>
   }
 
+  if (!hasLiveDashboardData(snapshot)) {
+    return (
+      <div className="stack-grid">
+        <Panel
+          title={content.system.diagnosticsTitle}
+          eyebrow={content.system.diagnosticsEyebrow}
+          className="minimal-panel"
+        >
+          <div className="clean-empty-state">
+            <span className="status-badge status-idle">idle</span>
+            <h3>Awaiting runtime telemetry</h3>
+            <p>Diagnostics, logs, and execution feedback will stay minimal until live runtime data arrives.</p>
+          </div>
+        </Panel>
+      </div>
+    )
+  }
+
   return (
     <div className="system-layout">
-      <Panel title={content.system.diagnosticsTitle} eyebrow={content.system.diagnosticsEyebrow}>
+      <Panel title={content.system.diagnosticsTitle} eyebrow={content.system.diagnosticsEyebrow} className="minimal-panel">
         <div className="diagnostic-grid">
           <article
             className="diagnostic-card"
@@ -61,9 +80,9 @@ export const SystemLogsPage = () => {
         </div>
       </Panel>
 
-      <Panel title={content.system.logsTitle} eyebrow={content.system.logsEyebrow}>
-        <div className="system-log-list">
-          {snapshot.logs.map((log) => (
+      <Panel title={content.system.logsTitle} eyebrow={content.system.logsEyebrow} className="minimal-panel">
+        <div className="system-log-list minimal-list">
+          {snapshot.logs.slice(0, 8).map((log) => (
             <article key={log.id} className={`log-line accent-${log.accent}`}>
               <span>{formatTimestamp(log.timestamp)}</span>
               <strong>{log.channel}</strong>
@@ -73,7 +92,7 @@ export const SystemLogsPage = () => {
         </div>
       </Panel>
 
-      <Panel title={content.system.resultTitle} eyebrow={content.system.resultEyebrow}>
+      <Panel title={content.system.resultTitle} eyebrow={content.system.resultEyebrow} className="minimal-panel">
         {lastCommandResult ? (
           <div className="command-result">
             <span className={`status-badge status-${lastCommandResult.ok ? 'active' : 'warning'}`}>

@@ -1,7 +1,15 @@
 import '@testing-library/jest-dom'
+import { cleanup } from '@testing-library/react'
+import { afterEach } from 'vitest'
+
+afterEach(() => {
+  cleanup()
+})
 
 if (typeof window !== 'undefined') {
   const store = new Map<string, string>()
+  const requestAnimationFrameMock = () => 0
+  const cancelAnimationFrameMock = () => {}
   const localStorageMock = {
     getItem: (key: string) => store.get(key) ?? null,
     setItem: (key: string, value: string) => {
@@ -21,13 +29,25 @@ if (typeof window !== 'undefined') {
   })
 
   Object.defineProperty(window, 'requestAnimationFrame', {
-    value: () => 0,
+    value: requestAnimationFrameMock,
     configurable: true,
     writable: true,
   })
 
   Object.defineProperty(window, 'cancelAnimationFrame', {
-    value: () => {},
+    value: cancelAnimationFrameMock,
+    configurable: true,
+    writable: true,
+  })
+
+  Object.defineProperty(globalThis, 'requestAnimationFrame', {
+    value: requestAnimationFrameMock,
+    configurable: true,
+    writable: true,
+  })
+
+  Object.defineProperty(globalThis, 'cancelAnimationFrame', {
+    value: cancelAnimationFrameMock,
     configurable: true,
     writable: true,
   })

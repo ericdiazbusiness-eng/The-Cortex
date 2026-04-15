@@ -1,23 +1,20 @@
 import { act, useEffect } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HashRouter, Route, Routes } from 'react-router-dom'
 import App from './App'
 import { AppLayout } from '@/components/AppLayout'
 import { CortexProvider } from '@/context/CortexContext'
 import { useCortex } from '@/hooks/useCortex'
 import { AgentsPage } from '@/pages/AgentsPage'
-import { MemoriesPage } from '@/pages/MemoriesPage'
 import { OverviewPage } from '@/pages/OverviewPage'
-import { SchedulesPage } from '@/pages/SchedulesPage'
-import { SystemLogsPage } from '@/pages/SystemLogsPage'
 import {
   DEFAULT_FALLBACK_DATA,
   REALTIME_MODE_STORAGE_KEY,
   type CortexBridge,
   type CortexRealtimeDebugEntry,
 } from '@/shared/cortex'
-import { UI_MODE_STORAGE_KEY } from '@/lib/ui-mode'
+import { getModeContent, UI_MODE_STORAGE_KEY } from '@/lib/ui-mode'
 
 const clone = <T,>(value: T) => JSON.parse(JSON.stringify(value)) as T
 const clearStoredMode = () => {
@@ -25,45 +22,58 @@ const clearStoredMode = () => {
   window.localStorage?.removeItem?.(REALTIME_MODE_STORAGE_KEY)
 }
 
-const FocusMarketingMetricDriver = () => {
+const FocusMarketingAgentDriver = () => {
   const { focusUi } = useCortex()
 
   useEffect(() => {
     focusUi({
       route: '/agents',
       agentId: 'zib001',
-      marketingMetricId: 'metric-2',
     })
   }, [focusUi])
 
   return null
 }
 
-const renderWithFocusDriver = () =>
-  render(
-    <CortexProvider>
-      <HashRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <>
-                <FocusMarketingMetricDriver />
-                <AppLayout />
-              </>
-            }
-          >
-            <Route index element={<OverviewPage />} />
-            <Route path="agents" element={<AgentsPage />} />
-            <Route path="marketing" element={<Navigate to="/agents" replace />} />
-            <Route path="memories" element={<MemoriesPage />} />
-            <Route path="schedules" element={<SchedulesPage />} />
-            <Route path="system" element={<SystemLogsPage />} />
-          </Route>
-        </Routes>
-      </HashRouter>
-    </CortexProvider>,
+const RealtimeNavigationProbe = () => {
+  const { realtimeMode } = useCortex()
+
+  return (
+    <div>
+      <span>{realtimeMode}</span>
+    </div>
   )
+}
+
+const RealtimeNavigationDriver = () => {
+  const { focusUi, setRealtimeMode } = useCortex()
+
+  useEffect(() => {
+    setRealtimeMode('neural_voice')
+    focusUi({
+      route: '/agents',
+    })
+  }, [focusUi, setRealtimeMode])
+
+  return null
+}
+
+const UiModeProbe = () => {
+  const { toggleUiMode, uiMode } = useCortex()
+  const content = getModeContent(uiMode)
+
+  return (
+    <div>
+      <button type="button" onClick={toggleUiMode}>
+        Toggle theme mode
+      </button>
+      <span>{uiMode}</span>
+      {content.nav.map((item) => (
+        <span key={item.path}>{item.label}</span>
+      ))}
+    </div>
+  )
+}
 
 describe('The Cortex app', () => {
   beforeEach(() => {
@@ -89,6 +99,10 @@ describe('The Cortex app', () => {
         new Error('Realtime voice is not configured in this test.'),
       ),
       transcribeAudio: vi.fn().mockResolvedValue(''),
+      createRealtimeTranscriptionToken: vi.fn().mockResolvedValue({
+        token: 'token-1',
+        expiresAt: null,
+      }),
       createToolVoiceResponse: vi.fn().mockResolvedValue({
         id: 'response-1',
         outputText: '',
@@ -131,6 +145,11 @@ describe('The Cortex app', () => {
     expect(screen.getByText('Active Priorities')).toBeInTheDocument()
     expect(screen.getByText('Urgent Items')).toBeInTheDocument()
     expect(screen.getByText('Overview')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /usage$/i })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: /elevenlabs/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /openai/i })).toBeInTheDocument()
+    expect(screen.queryByText('ElevenLabs')).not.toBeInTheDocument()
+    expect(screen.queryByText('OpenAI')).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /marketing/i })).not.toBeInTheDocument()
     expect(screen.queryByText('Sentient Mind')).not.toBeInTheDocument()
     expect(screen.queryByText('Dark mode operations')).not.toBeInTheDocument()
@@ -144,53 +163,52 @@ describe('The Cortex app', () => {
   })
 
   it('switches to business mode, persists it, and updates labels on the same routes', async () => {
-    const user = userEvent.setup()
-    render(<App />)
+    render(
+      <CortexProvider>
+        <UiModeProbe />
+      </CortexProvider>,
+    )
 
-    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
+    expect(screen.getByText('scavenjer')).toBeInTheDocument()
+    expect(screen.getByText('Ops Memory')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /toggle theme mode/i }))
+    fireEvent.click(screen.getByRole('button', { name: /toggle theme mode/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('Hello Eric')).toBeInTheDocument()
+      expect(screen.getByText('business')).toBeInTheDocument()
     })
 
     expect(window.localStorage?.getItem?.(UI_MODE_STORAGE_KEY)).toBe('business')
-    expect(screen.getByRole('link', { name: /Decisions/i })).toBeInTheDocument()
-    expect(screen.queryByText('Business light mode')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /ZiBz/i })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Growth/i })).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole('link', { name: /ZiBz/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText('ZiBz operations channel')).toBeInTheDocument()
-      expect(screen.getAllByText('Executive operator').length).toBeGreaterThan(0)
-      expect(screen.getByText('ZiBz')).toBeInTheDocument()
-    })
+    expect(screen.getByText('Decisions')).toBeInTheDocument()
+    expect(screen.getByText('ZiBz')).toBeInTheDocument()
+    expect(screen.queryByText('Growth')).not.toBeInTheDocument()
   })
 
-  it('cycles through ZiBz roles and only shows campaign sections for the marketing-owned ZiB', async () => {
-    const user = userEvent.setup()
-    render(<App />)
-
-    await user.click(await screen.findByRole('link', { name: /ZiBz/i }))
+  it('keeps the ZiBz page minimal when only fixture data is available', async () => {
+    const firstView = render(
+      <CortexProvider>
+        <AgentsPage />
+      </CortexProvider>,
+    )
 
     await waitFor(() => {
       expect(screen.getByText('ZiBz operations channel')).toBeInTheDocument()
-      expect(screen.getAllByText('ZiB00').length).toBeGreaterThan(0)
-      expect(screen.queryByText('ZiB001 marketing command')).not.toBeInTheDocument()
+      expect(screen.getByText('Awaiting live ZiBz activity')).toBeInTheDocument()
+      expect(screen.queryByText('Outreach queue')).not.toBeInTheDocument()
     })
 
-    const nextButton = screen.getByRole('button', { name: /next zibz/i })
-    for (let attempt = 0; attempt < 3 && !screen.queryByText('ZiB001 marketing command'); attempt += 1) {
-      fireEvent.click(nextButton)
-    }
+    firstView.unmount()
+
+    render(
+      <CortexProvider>
+        <FocusMarketingAgentDriver />
+        <AgentsPage />
+      </CortexProvider>,
+    )
 
     await waitFor(() => {
-      expect(screen.getAllByText('ZiB001').length).toBeGreaterThan(0)
-      expect(screen.getByText('ZiB001 marketing command')).toBeInTheDocument()
-      expect(screen.getByText('Outreach queue')).toBeInTheDocument()
+      expect(screen.getByText('Awaiting live ZiBz activity')).toBeInTheDocument()
+      expect(screen.queryByText('Outreach queue')).not.toBeInTheDocument()
     })
   })
 
@@ -210,6 +228,25 @@ describe('The Cortex app', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Hello Zaidek')).toBeInTheDocument()
+    })
+  })
+
+  it('reveals provider labels only on hover for the overview side rings', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
+    expect(screen.queryByText('ElevenLabs')).not.toBeInTheDocument()
+
+    await user.hover(screen.getByRole('button', { name: /elevenlabs/i }))
+
+    expect(screen.getByText('ElevenLabs')).toBeInTheDocument()
+    expect(screen.getByText('Voice identity')).toBeInTheDocument()
+
+    await user.unhover(screen.getByRole('button', { name: /elevenlabs/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('ElevenLabs')).not.toBeInTheDocument()
     })
   })
 
@@ -317,6 +354,7 @@ describe('The Cortex app', () => {
     const view = render(<App />)
 
     expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
+    expect(view.container.querySelector('.page-viewport[data-scene-runtime="overview"]')).not.toBeNull()
     expect(view.container.querySelector('.circuit-canvas')).not.toBeNull()
     expect(view.container.querySelector('.page-backdrop-static')).toBeNull()
 
@@ -324,8 +362,38 @@ describe('The Cortex app', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Central memory stream')).toBeInTheDocument()
+      expect(view.container.querySelector('.page-viewport[data-scene-runtime="route"]')).not.toBeNull()
       expect(view.container.querySelector('.circuit-canvas')).toBeNull()
       expect(view.container.querySelector('.page-backdrop-static')).not.toBeNull()
+    })
+  })
+
+  it('keeps the shared voice mode state while navigating away from overview', async () => {
+    render(
+      <CortexProvider>
+        <HashRouter>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <>
+                  <RealtimeNavigationDriver />
+                  <RealtimeNavigationProbe />
+                  <AppLayout />
+                </>
+              }
+            >
+              <Route index element={<OverviewPage />} />
+              <Route path="agents" element={<AgentsPage />} />
+            </Route>
+          </Routes>
+        </HashRouter>
+      </CortexProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('ZiBz operations channel')).toBeInTheDocument()
+      expect(screen.getByText('neural_voice')).toBeInTheDocument()
     })
   })
 
@@ -389,13 +457,21 @@ describe('The Cortex app', () => {
     ).not.toHaveLength(0)
   })
 
-  it('navigates to the marketing lane and highlights the requested metric when UI focus updates', async () => {
-    renderWithFocusDriver()
+  it('can leave the ZiBz page through dock navigation without being forced back', async () => {
+    const user = userEvent.setup()
+    render(<App />)
 
-    expect(await screen.findByText('ZiB001 marketing command')).toBeInTheDocument()
+    await user.click(await screen.findByRole('link', { name: /ZiBz/i }))
 
-    const focusedMetric = screen.getByText('Active campaigns').closest('article')
-    expect(focusedMetric).toHaveAttribute('data-ui-focus', 'true')
-    expect(screen.getAllByText('ZiB001').length).toBeGreaterThan(0)
+    await waitFor(() => {
+      expect(screen.getByText('ZiBz operations channel')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('link', { name: /Ops Memory/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Central memory stream')).toBeInTheDocument()
+      expect(screen.queryByText('ZiBz operations channel')).not.toBeInTheDocument()
+    })
   })
 })

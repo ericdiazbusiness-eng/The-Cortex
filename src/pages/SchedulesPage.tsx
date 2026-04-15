@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { Panel } from '@/components/Panel'
 import { formatTimestamp } from '@/lib/formatters'
 import { useCortex } from '@/hooks/useCortex'
 import { getModeContent } from '@/lib/ui-mode'
+import { hasLiveDashboardData } from '@/lib/runtime-data'
 
 export const SchedulesPage = () => {
   const { setViewContext, snapshot, runCommand, uiFocus, uiMode } = useCortex()
@@ -27,16 +27,33 @@ export const SchedulesPage = () => {
     return <div className="loading-state">{content.schedules.loading}</div>
   }
 
+  if (!hasLiveDashboardData(snapshot)) {
+    return (
+      <div className="stack-grid">
+        <Panel
+          title={content.schedules.panelTitle}
+          eyebrow={content.schedules.panelEyebrow}
+          className="minimal-panel"
+        >
+          <div className="clean-empty-state">
+            <span className="status-badge status-idle">idle</span>
+            <h3>Awaiting live automation signals</h3>
+            <p>Scheduled jobs will populate here when real automations and cron sources are available.</p>
+          </div>
+        </Panel>
+      </div>
+    )
+  }
+
   return (
     <div className="stack-grid">
-      <Panel title={content.schedules.panelTitle} eyebrow={content.schedules.panelEyebrow}>
-        <div className="schedule-grid">
+      <Panel title={content.schedules.panelTitle} eyebrow={content.schedules.panelEyebrow} className="minimal-panel">
+        <div className="schedule-grid minimal-list">
           {snapshot.jobs.map((job) => (
-            <motion.article
+            <article
               key={job.id}
               className={`schedule-card accent-${job.accent}`}
               data-ui-focus={uiFocus.scheduleId === job.id}
-              whileHover={{ y: -8 }}
             >
               <header>
                 <div>
@@ -45,8 +62,6 @@ export const SchedulesPage = () => {
                 </div>
                 <strong>{job.schedule}</strong>
               </header>
-
-              <p>{job.description}</p>
 
               <div className="schedule-meta">
                 <div>
@@ -80,7 +95,7 @@ export const SchedulesPage = () => {
                   {content.schedules.retryLabel}
                 </button>
               </div>
-            </motion.article>
+            </article>
           ))}
         </div>
       </Panel>

@@ -57,6 +57,8 @@ type ToolVoiceResources = {
   analyser: AnalyserNode
   audioElement: HTMLAudioElement
   monitorId: number
+  processorNode: ScriptProcessorNode | null
+  processorSink: GainNode | null
   recorder: MediaRecorder | null
   sourceNode: MediaStreamAudioSourceNode
   stream: MediaStream
@@ -64,6 +66,22 @@ type ToolVoiceResources = {
   startedSpeakingAt: number | null
   interruptionFrames: number
   chunks: Blob[]
+  streamingTranscription: boolean
+  transcriptionSocket: RealtimeTranscriptionSocket | null
+  transcriptionReady: Promise<void> | null
+  resolveTranscriptionReady: (() => void) | null
+  rejectTranscriptionReady: ((reason?: unknown) => void) | null
+  transcriptionStarted: boolean
+  sentPreviousText: boolean
+  bufferedSpeakingChunks: string[]
+}
+
+type RealtimeTranscriptionSocket = {
+  addEventListener: WebSocket['addEventListener']
+  removeEventListener: WebSocket['removeEventListener']
+  send: WebSocket['send']
+  close: WebSocket['close']
+  readyState: number
 }
 
 type ControllerOptions = {
@@ -75,6 +93,7 @@ type ControllerOptions = {
     stream: MediaStream,
     options?: MediaRecorderOptions,
   ) => MediaRecorder
+  realtimeTranscriptionSocketFactory?: (url: string) => RealtimeTranscriptionSocket
 }
 
 const isoNow = () => new Date().toISOString()
@@ -134,6 +153,17 @@ const TOOL_VOICE_INTERRUPT_THRESHOLD = 26
 const TOOL_VOICE_INTERRUPT_FRAMES = 2
 const TOOL_VOICE_TIMESLICE_MS = 250
 const TOOL_VOICE_MAX_RECORDING_MS = 18000
+const ELEVENLABS_REALTIME_TRANSCRIPTIONS_URL = 'wss://api.elevenlabs.io/v1/speech-to-text/realtime'
+const REALTIME_TRANSCRIPTION_SAMPLE_RATE = 16000
+const REALTIME_TRANSCRIPTION_AUDIO_FORMAT = 'pcm_16000'
+const REALTIME_TRANSCRIPTION_PROCESSOR_BUFFER_SIZE = 4096
+const REALTIME_TRANSCRIPTION_VAD_SILENCE_SECS = 1.8
+const REALTIME_TRANSCRIPTION_VAD_THRESHOLD = 0.34
+const REALTIME_TRANSCRIPTION_MIN_SPEECH_MS = 120
+const REALTIME_TRANSCRIPTION_MIN_SILENCE_MS = 160
+const REALTIME_TRANSCRIPTION_SPEAKING_BUFFER_LIMIT = 6
+const SOCKET_READY_STATE_CONNECTING = 0
+const SOCKET_READY_STATE_OPEN = 1
 const TOOL_VOICE_RECORDER_MIME_TYPES = [
   'audio/webm;codecs=opus',
   'audio/webm',
@@ -235,6 +265,49 @@ const serializeToolOutput = (value: unknown) =>
           value,
         },
   )
+
+const encodePcm16Base64 = (
+  input: Float32Array,
+  sourceSampleRate: number,
+  targetSampleRate = REALTIME_TRANSCRIPTION_SAMPLE_RATE,
+) => {
+  if (!input.length) {
+    return ''
+  }
+
+  if (sourceSampleRate <= 0 || targetSampleRate <= 0) {
+    return ''
+  }
+
+  const ratio = sourceSampleRate / targetSampleRate
+  const outputLength = Math.max(1, Math.round(input.length / ratio))
+  const output = new Int16Array(outputLength)
+  let offsetResult = 0
+  let offsetBuffer = 0
+
+  while (offsetResult < output.length) {
+    const nextOffsetBuffer = Math.min(input.length, Math.round((offsetResult + 1) * ratio))
+    let sum = 0
+    let count = 0
+
+    for (let index = offsetBuffer; index < nextOffsetBuffer; index += 1) {
+      sum += input[index]
+      count += 1
+    }
+
+    const sample = count ? sum / count : input[Math.min(offsetBuffer, input.length - 1)] ?? 0
+    const clamped = Math.max(-1, Math.min(1, sample))
+    output[offsetResult] =
+      clamped < 0 ? Math.round(clamped * 0x8000) : Math.round(clamped * 0x7fff)
+
+    offsetResult += 1
+    offsetBuffer = nextOffsetBuffer
+  }
+
+  return btoa(
+    Array.from(new Uint8Array(output.buffer), (value) => String.fromCharCode(value)).join(''),
+  )
+}
 
 export const buildRealtimeToolDefinitions = (
   snapshot: CortexDashboardSnapshot | null,
@@ -672,6 +745,8 @@ export class CortexRealtimeController {
     options?: MediaRecorderOptions,
   ) => MediaRecorder
 
+  private readonly realtimeTranscriptionSocketFactory: (url: string) => RealtimeTranscriptionSocket
+
   private readonly onStateChange: (state: CortexRealtimeState) => void
 
   private readonly onToolCall: ToolCallHandler
@@ -705,6 +780,8 @@ export class CortexRealtimeController {
     this.getUserMedia = options.getUserMedia ?? getDefaultUserMedia
     this.mediaRecorderFactory =
       options.mediaRecorderFactory ?? getDefaultMediaRecorderFactory
+    this.realtimeTranscriptionSocketFactory =
+      options.realtimeTranscriptionSocketFactory ?? ((url: string) => new WebSocket(url))
     this.onStateChange = dependencies.onStateChange
     this.onToolCall = dependencies.onToolCall
   }
@@ -978,6 +1055,34 @@ export class CortexRealtimeController {
     await this.stop('Realtime voice session disposed.')
   }
 
+  private usesStreamingTranscription(request: CortexRealtimeSessionRequest) {
+    return (
+      request.mode === 'neural_voice' &&
+      request.transcriptionProvider === 'elevenlabs' &&
+      request.transcriptionModel === 'scribe_v2_realtime'
+    )
+  }
+
+  private createRealtimeTranscriptionUrl(token: string, request: CortexRealtimeSessionRequest) {
+    const params = new URLSearchParams({
+      token,
+      model_id: request.transcriptionModel ?? 'scribe_v2_realtime',
+      audio_format: REALTIME_TRANSCRIPTION_AUDIO_FORMAT,
+      commit_strategy: 'vad',
+      vad_silence_threshold_secs: String(REALTIME_TRANSCRIPTION_VAD_SILENCE_SECS),
+      vad_threshold: String(REALTIME_TRANSCRIPTION_VAD_THRESHOLD),
+      min_speech_duration_ms: String(REALTIME_TRANSCRIPTION_MIN_SPEECH_MS),
+      min_silence_duration_ms: String(REALTIME_TRANSCRIPTION_MIN_SILENCE_MS),
+      include_timestamps: 'false',
+    })
+
+    if (request.mode === 'neural_voice') {
+      params.set('language_code', 'en')
+    }
+
+    return `${ELEVENLABS_REALTIME_TRANSCRIPTIONS_URL}?${params.toString()}`
+  }
+
   private async startToolVoice(
     version: number,
     request: CortexRealtimeSessionRequest,
@@ -1003,7 +1108,7 @@ export class CortexRealtimeController {
     }
 
     const audioElement = this.createPlaybackAudioElement()
-    await this.beginRealtimeVoiceCapture(version, stream, audioElement)
+    await this.beginRealtimeVoiceCapture(version, stream, audioElement, request)
 
     this.setState(
       withVisualState({
@@ -1049,6 +1154,7 @@ export class CortexRealtimeController {
     version: number,
     stream: MediaStream,
     playbackAudioElement: HTMLAudioElement,
+    request: CortexRealtimeSessionRequest,
   ) {
     this.debugLog('Arming local voice capture loop.', {
       trackCount: stream.getTracks().length,
@@ -1066,14 +1172,63 @@ export class CortexRealtimeController {
     const sourceNode = audioContext.createMediaStreamSource(stream)
     sourceNode.connect(analyser)
 
+    let processorNode: ScriptProcessorNode | null = null
+    let processorSink: GainNode | null = null
+    let streamingTranscription = false
+    let transcriptionSocket: RealtimeTranscriptionSocket | null = null
+    let transcriptionReady: Promise<void> | null = null
+    let resolveTranscriptionReady: (() => void) | null = null
+    let rejectTranscriptionReady: ((reason?: unknown) => void) | null = null
+
+    if (this.usesStreamingTranscription(request)) {
+      const token = await this.api.createRealtimeTranscriptionToken({
+        mode: request.mode,
+        purpose: 'realtime_scribe',
+      })
+      const realtimeUrl = this.createRealtimeTranscriptionUrl(token.token, request)
+      this.debugLog('Opening ElevenLabs realtime transcription session.', {
+        expiresAt: token.expiresAt,
+        model: request.transcriptionModel ?? null,
+      })
+
+      transcriptionReady = new Promise<void>((resolve, reject) => {
+        resolveTranscriptionReady = resolve
+        rejectTranscriptionReady = reject
+      })
+      transcriptionSocket = this.realtimeTranscriptionSocketFactory(realtimeUrl)
+      processorNode = audioContext.createScriptProcessor(
+        REALTIME_TRANSCRIPTION_PROCESSOR_BUFFER_SIZE,
+        1,
+        1,
+      )
+      processorSink = audioContext.createGain()
+      processorSink.gain.value = 0
+      sourceNode.connect(processorNode)
+      processorNode.connect(processorSink)
+      processorSink.connect(audioContext.destination)
+      streamingTranscription = true
+    }
+
     this.toolVoiceResources = this.createVoiceCaptureResources(
       stream,
       playbackAudioElement,
       audioContext,
       analyser,
       sourceNode,
+      processorNode,
+      processorSink,
+      streamingTranscription,
+      transcriptionSocket,
+      transcriptionReady,
+      resolveTranscriptionReady,
+      rejectTranscriptionReady,
       version,
     )
+
+    if (this.toolVoiceResources.streamingTranscription) {
+      this.armRealtimeTranscriptionSession(this.toolVoiceResources, request, version)
+      await this.toolVoiceResources.transcriptionReady
+    }
     this.debugLog('Local voice capture loop armed.', {
       monitorIntervalMs: TOOL_VOICE_CHECK_INTERVAL_MS,
     })
@@ -1115,7 +1270,11 @@ export class CortexRealtimeController {
       }
 
       const audioElement = this.createPlaybackAudioElement()
-      await this.beginRealtimeVoiceCapture(version, stream, audioElement)
+      if (!this.activeRequest) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
+      await this.beginRealtimeVoiceCapture(version, stream, audioElement, this.activeRequest)
       this.setState(
         withVisualState({
           ...this.state,
@@ -1204,6 +1363,10 @@ export class CortexRealtimeController {
       }
 
       resources.interruptionFrames = 0
+
+      if (resources.streamingTranscription) {
+        return
+      }
 
       if (level > TOOL_VOICE_THRESHOLD) {
         resources.silenceSince = null
@@ -1396,12 +1559,204 @@ export class CortexRealtimeController {
     recorder.start(TOOL_VOICE_TIMESLICE_MS)
   }
 
+  private armRealtimeTranscriptionSession(
+    resources: ToolVoiceResources,
+    request: CortexRealtimeSessionRequest,
+    version: number,
+  ) {
+    const socket = resources.transcriptionSocket
+    if (!socket) {
+      return
+    }
+
+    const handleMessage = (event: MessageEvent<string>) => {
+      const payload = safeParseJson(event.data) as Record<string, unknown>
+      const messageType = typeof payload.message_type === 'string' ? payload.message_type : 'unknown'
+
+      if (messageType === 'session_started') {
+        resources.transcriptionStarted = true
+        resources.resolveTranscriptionReady?.()
+        resources.resolveTranscriptionReady = null
+        resources.rejectTranscriptionReady = null
+        this.debugLog('ElevenLabs realtime transcription session started.', {
+          sessionConfig: payload.config ?? null,
+        })
+        return
+      }
+
+      if (messageType === 'partial_transcript') {
+        const partialText = typeof payload.text === 'string' ? payload.text.trim() : ''
+        if (!partialText || !this.isCurrentVersion(version)) {
+          return
+        }
+
+        this.setState(
+          withVisualState({
+            ...this.state,
+            active: true,
+            status: this.state.status === 'speaking' ? this.state.status : 'listening',
+            stage: this.state.status === 'speaking' ? this.state.stage : 'capturing',
+            lastTranscriptPreview: truncateText(partialText),
+            lastEventAt: isoNow(),
+          }),
+        )
+        return
+      }
+
+      if (messageType === 'committed_transcript') {
+        const committedText = typeof payload.text === 'string' ? payload.text.trim() : ''
+        if (!committedText || !this.isCurrentVersion(version)) {
+          return
+        }
+
+        resources.bufferedSpeakingChunks = []
+        void this.handleTranscriptTurn(committedText, request, version)
+        return
+      }
+
+      if (messageType.endsWith('error')) {
+        if (resources.transcriptionSocket !== socket) {
+          return
+        }
+        const message =
+          typeof payload.message === 'string'
+            ? payload.message
+            : typeof payload.detail === 'string'
+              ? payload.detail
+              : 'ElevenLabs realtime transcription failed.'
+        resources.rejectTranscriptionReady?.(new Error(message))
+        resources.resolveTranscriptionReady = null
+        resources.rejectTranscriptionReady = null
+        if (this.isCurrentVersion(version) && this.state.active) {
+          void this.transitionToError(message)
+        }
+      }
+    }
+
+    const handleError = () => {
+      if (resources.transcriptionSocket !== socket) {
+        return
+      }
+      resources.rejectTranscriptionReady?.(
+        new Error('ElevenLabs realtime transcription connection failed.'),
+      )
+      resources.resolveTranscriptionReady = null
+      resources.rejectTranscriptionReady = null
+      if (this.isCurrentVersion(version) && this.state.active) {
+        void this.transitionToError('ElevenLabs realtime transcription connection failed.')
+      }
+    }
+
+    const handleClose = () => {
+      if (resources.transcriptionSocket !== socket) {
+        return
+      }
+      resources.rejectTranscriptionReady?.(
+        new Error('ElevenLabs realtime transcription session closed before becoming ready.'),
+      )
+      resources.resolveTranscriptionReady = null
+      resources.rejectTranscriptionReady = null
+      if (this.isCurrentVersion(version) && this.state.active) {
+        void this.transitionToError('ElevenLabs realtime transcription session closed unexpectedly.')
+      }
+    }
+
+    socket.addEventListener('message', handleMessage as EventListener)
+    socket.addEventListener('error', handleError)
+    socket.addEventListener('close', handleClose)
+
+    if (resources.processorNode) {
+      resources.processorNode.onaudioprocess = (event) => {
+        this.handleRealtimeTranscriptionAudioFrame(resources, version, event)
+      }
+    }
+  }
+
+  private handleRealtimeTranscriptionAudioFrame(
+    resources: ToolVoiceResources,
+    version: number,
+    event: AudioProcessingEvent,
+  ) {
+    if (
+      !this.isCurrentVersion(version) ||
+      !resources.streamingTranscription ||
+      !resources.transcriptionSocket ||
+      !resources.transcriptionStarted ||
+      !this.activeRequest
+    ) {
+      return
+    }
+
+    const encodedChunk = encodePcm16Base64(
+      event.inputBuffer.getChannelData(0),
+      resources.audioContext.sampleRate,
+    )
+    if (!encodedChunk) {
+      return
+    }
+
+    if (!resources.audioElement.paused) {
+      resources.bufferedSpeakingChunks = [
+        ...resources.bufferedSpeakingChunks.slice(
+          -(REALTIME_TRANSCRIPTION_SPEAKING_BUFFER_LIMIT - 1),
+        ),
+        encodedChunk,
+      ]
+      return
+    }
+
+    if (resources.bufferedSpeakingChunks.length) {
+      const buffered = [...resources.bufferedSpeakingChunks, encodedChunk]
+      resources.bufferedSpeakingChunks = []
+      buffered.forEach((chunk, index) => {
+        this.sendRealtimeTranscriptionChunk(resources, chunk, index === 0)
+      })
+      return
+    }
+
+    this.sendRealtimeTranscriptionChunk(resources, encodedChunk, true)
+  }
+
+  private sendRealtimeTranscriptionChunk(
+    resources: ToolVoiceResources,
+    audioBase64: string,
+    allowPreviousText: boolean,
+  ) {
+    const socket = resources.transcriptionSocket
+    if (!socket || socket.readyState !== SOCKET_READY_STATE_OPEN) {
+      return
+    }
+
+    const payload: Record<string, unknown> = {
+      message_type: 'input_audio_chunk',
+      audio_base_64: audioBase64,
+      sample_rate: REALTIME_TRANSCRIPTION_SAMPLE_RATE,
+    }
+
+    if (allowPreviousText && !resources.sentPreviousText) {
+      const previousText = truncateText(this.state.lastResponsePreview, 48)
+      if (previousText) {
+        payload.previous_text = previousText
+      }
+      resources.sentPreviousText = true
+    }
+
+    socket.send(JSON.stringify(payload))
+  }
+
   private createVoiceCaptureResources(
     stream: MediaStream,
     audioElement: HTMLAudioElement,
     audioContext: AudioContext,
     analyser: AnalyserNode,
     sourceNode: MediaStreamAudioSourceNode,
+    processorNode: ScriptProcessorNode | null,
+    processorSink: GainNode | null,
+    streamingTranscription: boolean,
+    transcriptionSocket: RealtimeTranscriptionSocket | null,
+    transcriptionReady: Promise<void> | null,
+    resolveTranscriptionReady: (() => void) | null,
+    rejectTranscriptionReady: ((reason?: unknown) => void) | null,
     version: number,
   ): ToolVoiceResources {
     const monitorId = window.setInterval(() => {
@@ -1413,6 +1768,8 @@ export class CortexRealtimeController {
       analyser,
       audioElement,
       monitorId,
+      processorNode,
+      processorSink,
       recorder: null,
       sourceNode,
       stream,
@@ -1420,6 +1777,14 @@ export class CortexRealtimeController {
       startedSpeakingAt: null,
       interruptionFrames: 0,
       chunks: [],
+      streamingTranscription,
+      transcriptionSocket,
+      transcriptionReady,
+      resolveTranscriptionReady,
+      rejectTranscriptionReady,
+      transcriptionStarted: false,
+      sentPreviousText: false,
+      bufferedSpeakingChunks: [],
     }
   }
 
@@ -1513,221 +1878,7 @@ export class CortexRealtimeController {
         return
       }
 
-      this.lastUserTranscript = transcript
-      const transcriptPreview = truncateText(transcript)
-      this.setState(
-        withVisualState({
-          ...this.state,
-          active: true,
-          status: 'executing',
-          stage: 'responding',
-          turnId,
-          error: null,
-          lastTranscriptPreview: transcriptPreview,
-          lastEventAt: isoNow(),
-          lastCompletedStageAt: isoNow(),
-        }),
-      )
-      this.publishDebugEntry({
-        source: 'renderer',
-        level: 'log',
-        severity: 'log',
-        message: 'Transcript received; generating response.',
-        mode: request.mode,
-        stage: 'responding',
-        transport: request.runtime,
-        sessionAttemptId: this.state.sessionAttemptId,
-        turnId,
-        transcriptPreview,
-        responsePreview: this.state.lastResponsePreview,
-        toolName: this.state.lastToolCall?.name ?? null,
-        errorCode: null,
-        errorMessage: null,
-        context: this.getDebugContext({
-          transcriptPreview,
-          turnId,
-        }),
-      })
-
-      await this.recordLog(
-        'info',
-        'Voice transcription received.',
-      )
-
-      const finalText = await this.resolveToolVoiceResponse(
-        request,
-        [
-          {
-            type: 'message',
-            role: 'user',
-            content: transcript,
-          },
-        ],
-        version,
-        turnId,
-      )
-      this.debugLog('Tool-voice response resolution completed.', {
-        finalTextLength: finalText.length,
-      })
-
-      if (!this.isCurrentVersion(version)) {
-        return
-      }
-
-      if (!finalText) {
-        this.debugWarn('Tool-voice response completed without final text.')
-        this.setState(
-          withVisualState({
-            ...this.state,
-            active: true,
-            status: 'listening',
-            stage: 'ready',
-            error: null,
-            lastEventAt: isoNow(),
-          }),
-        )
-        return
-      }
-
-      const responsePreview = truncateText(finalText)
-      this.setState(
-        withVisualState({
-          ...this.state,
-          active: true,
-          turnId,
-          lastResponsePreview: responsePreview,
-          lastEventAt: isoNow(),
-        }),
-      )
-
-      await this.recordLog(
-        'success',
-        request.silentOutput ? 'UI director response ready.' : 'Voice response ready.',
-        'green',
-      )
-
-      if (request.silentOutput) {
-        if (finalText) {
-          await this.recordLog('info', `UI director summary: ${responsePreview ?? finalText}`)
-        }
-        this.setState(
-          withVisualState({
-            ...this.state,
-            active: true,
-            status: 'listening',
-            stage: 'silent_complete',
-            error: null,
-            lastEventAt: isoNow(),
-            lastCompletedStageAt: isoNow(),
-          }),
-        )
-        this.publishDebugEntry({
-          source: 'renderer',
-          level: 'log',
-          severity: 'log',
-          message: 'Silent UI response ready.',
-          mode: request.mode,
-          stage: 'silent_complete',
-          transport: request.runtime,
-          sessionAttemptId: this.state.sessionAttemptId,
-          turnId,
-          transcriptPreview: this.state.lastTranscriptPreview,
-          responsePreview,
-          toolName: this.state.lastToolCall?.name ?? null,
-          errorCode: null,
-          errorMessage: null,
-          context: this.getDebugContext({
-            responsePreview,
-            turnId,
-          }),
-        })
-        return
-      }
-
-        const speech = await this.api.synthesizeSpeech({
-          text: finalText,
-          provider: request.speechProvider,
-          model: request.speechModel ?? DEFAULT_SPEECH_MODEL,
-          voice: request.voice,
-          voiceSettings: request.voiceSettings,
-          pronunciationDictionaries: request.pronunciationDictionaries,
-          format: 'mp3',
-          mode: request.mode,
-          sessionAttemptId: this.state.sessionAttemptId ?? undefined,
-        turnId,
-      })
-      this.debugLog('Speech synthesis completed.', {
-        mimeType: speech.mimeType,
-        audioBase64Length: speech.audioBase64.length,
-        responsePreview,
-        turnId,
-      })
-
-      if (!this.isCurrentVersion(version)) {
-        return
-      }
-
-      const resources = this.toolVoiceResources
-      if (!resources) {
-        return
-      }
-
-      this.setState(
-        withVisualState({
-          ...this.state,
-          active: true,
-          status: 'speaking',
-          stage: 'speaking',
-          turnId,
-          error: null,
-          lastResponsePreview: responsePreview,
-          lastEventAt: isoNow(),
-          lastCompletedStageAt: isoNow(),
-        }),
-      )
-      resources.audioElement.src = `data:${speech.mimeType};base64,${speech.audioBase64}`
-
-      try {
-        await resources.audioElement.play()
-        this.publishDebugEntry({
-          source: 'renderer',
-          level: 'log',
-          severity: 'log',
-          message: 'Speech playback requested.',
-          mode: request.mode,
-          stage: 'speaking',
-          transport: request.runtime,
-          sessionAttemptId: this.state.sessionAttemptId,
-          turnId,
-          transcriptPreview: this.state.lastTranscriptPreview,
-          responsePreview,
-          toolName: this.state.lastToolCall?.name ?? null,
-          errorCode: null,
-          errorMessage: null,
-          context: this.getDebugContext({
-            responsePreview,
-            turnId,
-          }),
-        })
-      } catch {
-        this.debugWarn('Tool-voice playback failed to start; returning to listening state.')
-        this.setState(
-          withVisualState({
-            ...this.state,
-            active: true,
-            status: 'listening',
-            stage: 'ready',
-            error: null,
-            lastFailure: {
-              code: 'speech_playback_failed',
-              message: 'Speech playback could not start.',
-              stage: 'speaking',
-              timestamp: isoNow(),
-            },
-            lastEventAt: isoNow(),
-          }),
-        )
-      }
+      await this.handleTranscriptTurn(transcript, request, version, turnId)
     } catch (error) {
       if (!this.isCurrentVersion(version)) {
         return
@@ -1778,6 +1929,226 @@ export class CortexRealtimeController {
             code: 'voice_turn_failed',
             message,
             stage: this.state.stage,
+            timestamp: isoNow(),
+          },
+          lastEventAt: isoNow(),
+        }),
+      )
+    }
+  }
+
+  private async handleTranscriptTurn(
+    transcript: string,
+    request: CortexRealtimeSessionRequest,
+    version: number,
+    turnId = createSessionIdentity(),
+  ) {
+    this.lastUserTranscript = transcript
+    const transcriptPreview = truncateText(transcript)
+    this.setState(
+      withVisualState({
+        ...this.state,
+        active: true,
+        status: 'executing',
+        stage: 'responding',
+        turnId,
+        error: null,
+        lastTranscriptPreview: transcriptPreview,
+        lastEventAt: isoNow(),
+        lastCompletedStageAt: isoNow(),
+      }),
+    )
+    this.publishDebugEntry({
+      source: 'renderer',
+      level: 'log',
+      severity: 'log',
+      message: 'Transcript received; generating response.',
+      mode: request.mode,
+      stage: 'responding',
+      transport: request.runtime,
+      sessionAttemptId: this.state.sessionAttemptId,
+      turnId,
+      transcriptPreview,
+      responsePreview: this.state.lastResponsePreview,
+      toolName: this.state.lastToolCall?.name ?? null,
+      errorCode: null,
+      errorMessage: null,
+      context: this.getDebugContext({
+        transcriptPreview,
+        turnId,
+      }),
+    })
+
+    await this.recordLog('info', 'Voice transcription received.')
+
+    const finalText = await this.resolveToolVoiceResponse(
+      request,
+      [
+        {
+          type: 'message',
+          role: 'user',
+          content: transcript,
+        },
+      ],
+      version,
+      turnId,
+    )
+    this.debugLog('Tool-voice response resolution completed.', {
+      finalTextLength: finalText.length,
+    })
+
+    if (!this.isCurrentVersion(version)) {
+      return
+    }
+
+    if (!finalText) {
+      this.debugWarn('Tool-voice response completed without final text.')
+      this.setState(
+        withVisualState({
+          ...this.state,
+          active: true,
+          status: 'listening',
+          stage: 'ready',
+          error: null,
+          lastEventAt: isoNow(),
+        }),
+      )
+      return
+    }
+
+    const responsePreview = truncateText(finalText)
+    this.setState(
+      withVisualState({
+        ...this.state,
+        active: true,
+        turnId,
+        lastResponsePreview: responsePreview,
+        lastEventAt: isoNow(),
+      }),
+    )
+
+    await this.recordLog(
+      'success',
+      request.silentOutput ? 'UI director response ready.' : 'Voice response ready.',
+      'green',
+    )
+
+    if (request.silentOutput) {
+      if (finalText) {
+        await this.recordLog('info', `UI director summary: ${responsePreview ?? finalText}`)
+      }
+      this.setState(
+        withVisualState({
+          ...this.state,
+          active: true,
+          status: 'listening',
+          stage: 'silent_complete',
+          error: null,
+          lastEventAt: isoNow(),
+          lastCompletedStageAt: isoNow(),
+        }),
+      )
+      this.publishDebugEntry({
+        source: 'renderer',
+        level: 'log',
+        severity: 'log',
+        message: 'Silent UI response ready.',
+        mode: request.mode,
+        stage: 'silent_complete',
+        transport: request.runtime,
+        sessionAttemptId: this.state.sessionAttemptId,
+        turnId,
+        transcriptPreview: this.state.lastTranscriptPreview,
+        responsePreview,
+        toolName: this.state.lastToolCall?.name ?? null,
+        errorCode: null,
+        errorMessage: null,
+        context: this.getDebugContext({
+          responsePreview,
+          turnId,
+        }),
+      })
+      return
+    }
+
+    const speech = await this.api.synthesizeSpeech({
+      text: finalText,
+      provider: request.speechProvider,
+      model: request.speechModel ?? DEFAULT_SPEECH_MODEL,
+      voice: request.voice,
+      voiceSettings: request.voiceSettings,
+      pronunciationDictionaries: request.pronunciationDictionaries,
+      format: 'mp3',
+      mode: request.mode,
+      sessionAttemptId: this.state.sessionAttemptId ?? undefined,
+      turnId,
+    })
+    this.debugLog('Speech synthesis completed.', {
+      mimeType: speech.mimeType,
+      audioBase64Length: speech.audioBase64.length,
+      responsePreview,
+      turnId,
+    })
+
+    if (!this.isCurrentVersion(version)) {
+      return
+    }
+
+    const resources = this.toolVoiceResources
+    if (!resources) {
+      return
+    }
+
+    this.setState(
+      withVisualState({
+        ...this.state,
+        active: true,
+        status: 'speaking',
+        stage: 'speaking',
+        turnId,
+        error: null,
+        lastResponsePreview: responsePreview,
+        lastEventAt: isoNow(),
+        lastCompletedStageAt: isoNow(),
+      }),
+    )
+    resources.audioElement.src = `data:${speech.mimeType};base64,${speech.audioBase64}`
+
+    try {
+      await resources.audioElement.play()
+      this.publishDebugEntry({
+        source: 'renderer',
+        level: 'log',
+        severity: 'log',
+        message: 'Speech playback requested.',
+        mode: request.mode,
+        stage: 'speaking',
+        transport: request.runtime,
+        sessionAttemptId: this.state.sessionAttemptId,
+        turnId,
+        transcriptPreview: this.state.lastTranscriptPreview,
+        responsePreview,
+        toolName: this.state.lastToolCall?.name ?? null,
+        errorCode: null,
+        errorMessage: null,
+        context: this.getDebugContext({
+          responsePreview,
+          turnId,
+        }),
+      })
+    } catch {
+      this.debugWarn('Tool-voice playback failed to start; returning to listening state.')
+      this.setState(
+        withVisualState({
+          ...this.state,
+          active: true,
+          status: 'listening',
+          stage: 'ready',
+          error: null,
+          lastFailure: {
+            code: 'speech_playback_failed',
+            message: 'Speech playback could not start.',
+            stage: 'speaking',
             timestamp: isoNow(),
           },
           lastEventAt: isoNow(),
@@ -2108,6 +2479,29 @@ export class CortexRealtimeController {
 
     if (resources.recorder && resources.recorder.state !== 'inactive') {
       resources.recorder.stop()
+    }
+
+    resources.rejectTranscriptionReady?.(new Error('Realtime transcription session closed.'))
+    resources.resolveTranscriptionReady = null
+    resources.rejectTranscriptionReady = null
+
+    if (resources.processorNode) {
+      resources.processorNode.onaudioprocess = null
+      resources.processorNode.disconnect()
+    }
+
+    if (resources.processorSink) {
+      resources.processorSink.disconnect()
+    }
+
+    const transcriptionSocket = resources.transcriptionSocket
+    resources.transcriptionSocket = null
+    if (
+      transcriptionSocket &&
+      (transcriptionSocket.readyState === SOCKET_READY_STATE_OPEN ||
+        transcriptionSocket.readyState === SOCKET_READY_STATE_CONNECTING)
+    ) {
+      transcriptionSocket.close()
     }
 
     try {

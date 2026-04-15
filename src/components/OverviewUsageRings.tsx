@@ -8,7 +8,7 @@ type OverviewUsageRing = {
   symbol: string
   value: number
   tone: 'cyan' | 'magenta' | 'green'
-  side: 'left' | 'right-top' | 'right-bottom'
+  side: 'left-top' | 'left-middle' | 'left-bottom'
 }
 
 const OVERVIEW_USAGE_RINGS: OverviewUsageRing[] = [
@@ -19,7 +19,7 @@ const OVERVIEW_USAGE_RINGS: OverviewUsageRing[] = [
     symbol: '⬡',
     value: 34,
     tone: 'green',
-    side: 'left',
+    side: 'left-top',
   },
   {
     id: 'elevenlabs',
@@ -28,7 +28,7 @@ const OVERVIEW_USAGE_RINGS: OverviewUsageRing[] = [
     symbol: '◌',
     value: 68,
     tone: 'magenta',
-    side: 'right-top',
+    side: 'left-middle',
   },
   {
     id: 'openai',
@@ -37,7 +37,7 @@ const OVERVIEW_USAGE_RINGS: OverviewUsageRing[] = [
     symbol: '✦',
     value: 57,
     tone: 'cyan',
-    side: 'right-bottom',
+    side: 'left-bottom',
   },
 ]
 

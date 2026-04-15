@@ -1,9 +1,9 @@
 import { useDeferredValue, useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import { Panel } from '@/components/Panel'
 import { formatTimestamp } from '@/lib/formatters'
 import { useCortex } from '@/hooks/useCortex'
 import { getDisplayName, getModeContent } from '@/lib/ui-mode'
+import { hasLiveDashboardData } from '@/lib/runtime-data'
 
 export const MemoriesPage = () => {
   const { setViewContext, snapshot, uiFocus, uiMode } = useCortex()
@@ -11,10 +11,17 @@ export const MemoriesPage = () => {
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search)
   const content = getModeContent(uiMode)
+  const focusedMemoryAgentId =
+    snapshot && uiFocus.memoryId
+      ? snapshot.memories.find((memory) => memory.id === uiFocus.memoryId)?.agentId ?? null
+      : null
+  const effectiveSelectedAgent =
+    uiFocus.memoryAgentId ?? focusedMemoryAgentId ?? selectedAgent
 
   const filteredMemories = snapshot
     ? snapshot.memories.filter((memory) => {
-        const matchesAgent = selectedAgent === 'all' || memory.agentId === selectedAgent
+        const matchesAgent =
+          effectiveSelectedAgent === 'all' || memory.agentId === effectiveSelectedAgent
         const haystack = `${memory.title} ${memory.detail} ${memory.keywords.join(' ')}`
         const matchesSearch =
           !deferredSearch || haystack.toLowerCase().includes(deferredSearch.toLowerCase())
@@ -32,7 +39,7 @@ export const MemoriesPage = () => {
 
     setViewContext({
       details: {
-        selectedAgentFilter: selectedAgent,
+        selectedAgentFilter: effectiveSelectedAgent,
         search: deferredSearch,
         visibleMemories: filteredMemories.length,
         selectedMemoryId: selectedMemory?.id ?? null,
@@ -40,42 +47,42 @@ export const MemoriesPage = () => {
     })
   }, [
     deferredSearch,
+    effectiveSelectedAgent,
     filteredMemories.length,
-    selectedAgent,
     selectedMemory?.id,
     setViewContext,
     snapshot,
   ])
 
-  useEffect(() => {
-    if (!snapshot) {
-      return
-    }
-
-    if (uiFocus.memoryAgentId) {
-      setSelectedAgent(uiFocus.memoryAgentId)
-      return
-    }
-
-    if (uiFocus.memoryId) {
-      const focusedMemory = snapshot.memories.find((memory) => memory.id === uiFocus.memoryId)
-      if (focusedMemory) {
-        setSelectedAgent(focusedMemory.agentId)
-      }
-    }
-  }, [snapshot, uiFocus.memoryAgentId, uiFocus.memoryId, uiFocus.revision])
-
   if (!snapshot) {
     return <div className="loading-state">{content.memories.loading}</div>
   }
 
+  if (!hasLiveDashboardData(snapshot)) {
+    return (
+      <div className="stack-grid">
+        <Panel
+          title={content.memories.panelTitle}
+          eyebrow={content.memories.panelEyebrow}
+          className="minimal-panel"
+        >
+          <div className="clean-empty-state">
+            <span className="status-badge status-idle">idle</span>
+            <h3>Awaiting live memory intake</h3>
+            <p>Saved decisions and agent memory will appear here once a live source is connected.</p>
+          </div>
+        </Panel>
+      </div>
+    )
+  }
+
   return (
     <div className="memory-layout">
-      <Panel title={content.memories.panelTitle} eyebrow={content.memories.panelEyebrow}>
+      <Panel title={content.memories.panelTitle} eyebrow={content.memories.panelEyebrow} className="minimal-panel">
         <div className="memory-controls">
-          <div className="chip-row">
+          <div className="chip-row compact">
             <button
-              className={`data-chip${selectedAgent === 'all' ? ' active' : ''}`}
+              className={`data-chip${effectiveSelectedAgent === 'all' ? ' active' : ''}`}
               type="button"
               onClick={() => setSelectedAgent('all')}
             >
@@ -84,7 +91,7 @@ export const MemoriesPage = () => {
             {snapshot.agents.map((agent) => (
               <button
                 key={agent.id}
-                className={`data-chip${selectedAgent === agent.id ? ' active' : ''}`}
+                className={`data-chip${effectiveSelectedAgent === agent.id ? ' active' : ''}`}
                 type="button"
                 onClick={() => setSelectedAgent(agent.id)}
               >
@@ -103,15 +110,12 @@ export const MemoriesPage = () => {
           </label>
         </div>
 
-        <div className="memory-timeline">
-          {filteredMemories.map((memory, index) => (
-            <motion.article
+        <div className="memory-timeline minimal-list">
+          {filteredMemories.map((memory) => (
+            <article
               key={memory.id}
               className={`memory-item priority-${memory.priority}`}
               data-ui-focus={uiFocus.memoryId === memory.id}
-              initial={{ opacity: 0, x: 18 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.04 }}
             >
               <header>
                 <div>
@@ -120,17 +124,16 @@ export const MemoriesPage = () => {
                 </div>
                 {memory.pinned ? <em>{content.memories.pinnedLabel}</em> : null}
               </header>
-              <p>{memory.detail}</p>
               <footer>
                 <span>{formatTimestamp(memory.timestamp)}</span>
-                <span>{memory.keywords.join(' / ')}</span>
+                <span>{getDisplayName(memory.agentId, uiMode)}</span>
               </footer>
-            </motion.article>
+            </article>
           ))}
         </div>
       </Panel>
 
-      <Panel title={content.memories.focusTitle} eyebrow={content.memories.focusEyebrow}>
+      <Panel title={content.memories.focusTitle} eyebrow={content.memories.focusEyebrow} className="minimal-panel">
         {selectedMemory ? (
           <div className="memory-focus">
             <span className={`status-badge status-${selectedMemory.priority}`}>

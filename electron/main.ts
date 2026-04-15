@@ -10,6 +10,7 @@ import type {
   CortexRealtimeDebugEntryInput,
   CortexAbortVoiceTurnResult,
   CortexRealtimeLogEntry,
+  CortexRealtimeTranscriptionTokenRequest,
   CortexSpeechSynthesisRequest,
   CortexRealtimeSessionRequest,
   CortexToolVoiceResponseRequest,
@@ -21,6 +22,7 @@ import {
 } from './realtime-session'
 import {
   abortActiveVoiceTurn,
+  createRealtimeTranscriptionToken,
   createToolVoiceResponse,
   setToolVoiceDebugReporter,
   synthesizeSpeech,
@@ -190,6 +192,25 @@ app.whenReady().then(async () => {
       throw error
     }
   })
+  ipcMain.handle(
+    'cortex:createRealtimeTranscriptionToken',
+    async (_event, payload?: CortexRealtimeTranscriptionTokenRequest) => {
+      try {
+        return await createRealtimeTranscriptionToken(payload)
+      } catch (error) {
+        await runtime.recordRealtimeLog({
+          channel: 'realtime',
+          severity: 'error',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Realtime transcription token request failed.',
+          accent: 'red',
+        })
+        throw error
+      }
+    },
+  )
   ipcMain.handle(
     'cortex:createToolVoiceResponse',
     async (_event, payload: CortexToolVoiceResponseRequest) => {

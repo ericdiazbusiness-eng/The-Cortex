@@ -149,6 +149,16 @@ export type CortexAudioTranscriptionRequest = {
   mode?: CortexRealtimeMode
 }
 
+export type CortexRealtimeTranscriptionTokenRequest = {
+  purpose?: 'realtime_scribe'
+  mode?: CortexRealtimeMode
+}
+
+export type CortexRealtimeTranscriptionTokenResult = {
+  token: string
+  expiresAt: string | null
+}
+
 export type CortexToolVoiceInputItem =
   | {
       type: 'message'
@@ -444,6 +454,9 @@ export type CortexBridge = {
     payload: CortexRealtimeSessionRequest,
   ) => Promise<string>
   transcribeAudio: (payload: CortexAudioTranscriptionRequest) => Promise<string>
+  createRealtimeTranscriptionToken: (
+    payload?: CortexRealtimeTranscriptionTokenRequest,
+  ) => Promise<CortexRealtimeTranscriptionTokenResult>
   createToolVoiceResponse: (
     payload: CortexToolVoiceResponseRequest,
   ) => Promise<CortexToolVoiceResponse>
@@ -565,7 +578,7 @@ const buildLegacyRealtimeModeProfiles = (): Record<
     runtime: 'voice_pipeline',
     textModel: 'gpt-4.1-mini',
     transcriptionProvider: 'elevenlabs',
-    transcriptionModel: 'scribe_v2',
+    transcriptionModel: 'scribe_v2_realtime',
     speechProvider: 'elevenlabs',
     speechModel: 'eleven_flash_v2_5',
     voice: 'elevenlabs-custom',
@@ -662,7 +675,7 @@ const buildDefaultRealtimeModeProfiles = (): Record<
     runtime: 'voice_pipeline',
     textModel: 'gpt-4.1-mini',
     transcriptionProvider: 'elevenlabs',
-    transcriptionModel: 'scribe_v2',
+    transcriptionModel: 'scribe_v2_realtime',
     speechProvider: 'elevenlabs',
     speechModel: 'eleven_flash_v2_5',
     voice: 'elevenlabs-custom',

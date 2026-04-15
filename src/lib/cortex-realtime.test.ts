@@ -27,6 +27,10 @@ const createBridgeStub = (overrides: Partial<CortexBridge> = {}): CortexBridge =
   }),
   createRealtimeCall: vi.fn().mockResolvedValue('unused'),
   transcribeAudio: vi.fn().mockResolvedValue('hello cortex'),
+  createRealtimeTranscriptionToken: vi.fn().mockResolvedValue({
+    token: 'token-1',
+    expiresAt: null,
+  }),
   createToolVoiceResponse: vi.fn().mockResolvedValue({
     id: 'response-1',
     outputText: 'Tool voice response.',
@@ -68,6 +72,18 @@ const createAudioContextStub = () => {
     connect: vi.fn(),
     disconnect: vi.fn(),
   } as unknown as MediaStreamAudioSourceNode
+  const processorNode = {
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    onaudioprocess: null,
+  } as unknown as ScriptProcessorNode
+  const gainNode = {
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    gain: {
+      value: 1,
+    },
+  } as unknown as GainNode
   const analyser = {
     fftSize: 0,
     getByteTimeDomainData: vi.fn((buffer: Uint8Array) => buffer.fill(128)),
@@ -75,14 +91,57 @@ const createAudioContextStub = () => {
   const audioContext = {
     createAnalyser: vi.fn(() => analyser),
     createMediaStreamSource: vi.fn(() => sourceNode),
+    createScriptProcessor: vi.fn(() => processorNode),
+    createGain: vi.fn(() => gainNode),
+    destination: {},
     close: vi.fn().mockResolvedValue(undefined),
+    sampleRate: 16000,
     state: 'running',
   } as unknown as AudioContext
 
   return {
     analyser,
     audioContext,
+    gainNode,
+    processorNode,
     sourceNode,
+  }
+}
+
+class MockRealtimeTranscriptionSocket {
+  static readonly OPEN = 1
+
+  static readonly CONNECTING = 0
+
+  readyState = MockRealtimeTranscriptionSocket.CONNECTING
+
+  send = vi.fn()
+
+  close = vi.fn(() => {
+    this.readyState = 3
+  })
+
+  private listeners = new Map<string, Set<(event: Event | MessageEvent<string>) => void>>()
+
+  addEventListener = (type: string, listener: (event: Event | MessageEvent<string>) => void) => {
+    const bucket = this.listeners.get(type) ?? new Set()
+    bucket.add(listener)
+    this.listeners.set(type, bucket)
+  }
+
+  removeEventListener = (
+    type: string,
+    listener: (event: Event | MessageEvent<string>) => void,
+  ) => {
+    this.listeners.get(type)?.delete(listener)
+  }
+
+  emit(type: string, event?: Event | MessageEvent<string>) {
+    if (type === 'open') {
+      this.readyState = MockRealtimeTranscriptionSocket.OPEN
+    }
+    const payload = event ?? new Event(type)
+    this.listeners.get(type)?.forEach((listener) => listener(payload))
   }
 }
 
@@ -100,6 +159,9 @@ const createController = (
   mode: 'premium_voice' | 'neural_voice' | 'lean_voice' | 'tool_voice' | 'ui_director',
   bridge: CortexBridge,
   states: CortexRealtimeState[],
+  options: {
+    realtimeTranscriptionSocketFactory?: (url: string) => MockRealtimeTranscriptionSocket
+  } = {},
 ) => {
   const { stream } = createMediaStreamStub()
   const { audioContext } = createAudioContextStub()
@@ -119,6 +181,7 @@ const createController = (
     {
       audioContextFactory: () => audioContext,
       getUserMedia: vi.fn().mockResolvedValue(stream),
+      realtimeTranscriptionSocketFactory: options.realtimeTranscriptionSocketFactory,
     },
   )
 }
@@ -184,7 +247,7 @@ describe('CortexRealtimeController', () => {
       runtime: 'voice_pipeline',
       textModel: 'gpt-4.1-mini',
       transcriptionProvider: 'elevenlabs',
-      transcriptionModel: 'scribe_v2',
+      transcriptionModel: 'scribe_v2_realtime',
       speechProvider: 'elevenlabs',
       speechModel: 'eleven_flash_v2_5',
       voice: 'elevenlabs-custom',
@@ -295,9 +358,23 @@ describe('CortexRealtimeController', () => {
     })
   })
 
-  it('routes NEURAL turns through the ElevenLabs audio providers and the mini brain', async () => {
+  it('routes NEURAL turns through ElevenLabs realtime streaming and the mini brain', async () => {
+    const socket = new MockRealtimeTranscriptionSocket()
+    const socketFactory = vi.fn(() => {
+      queueMicrotask(() => {
+        socket.emit(
+          'message',
+          new MessageEvent('message', {
+            data: JSON.stringify({
+              message_type: 'session_started',
+              session_id: 'scribe-session-1',
+            }),
+          }),
+        )
+      })
+      return socket
+    })
     const bridge = createBridgeStub({
-      transcribeAudio: vi.fn().mockResolvedValue('Shape the Cortex voice stack.'),
       createToolVoiceResponse: vi.fn().mockResolvedValue({
         id: 'response-neural-1',
         outputText: 'Neural voice stack is ready.',
@@ -309,28 +386,30 @@ describe('CortexRealtimeController', () => {
       }),
     })
     const states: CortexRealtimeState[] = []
-    const controller = createController('neural_voice', bridge, states)
+    const controller = createController('neural_voice', bridge, states, {
+      realtimeTranscriptionSocketFactory: socketFactory,
+    })
 
     await controller.start()
 
-    const blob = {
-      type: 'audio/webm',
-      arrayBuffer: async () => new TextEncoder().encode('neural-turn').buffer,
-    } as unknown as Blob
-
-    await (controller as unknown as {
-      processToolVoiceTurn: (blob: Blob, version: number) => Promise<void>
-      version: number
-    }).processToolVoiceTurn(blob, (controller as unknown as { version: number }).version)
+    socket.emit(
+      'message',
+      new MessageEvent('message', {
+        data: JSON.stringify({
+          message_type: 'committed_transcript',
+          text: 'Shape the Cortex voice stack.',
+        }),
+      }),
+    )
 
     await waitFor(() => {
-      expect(bridge.transcribeAudio).toHaveBeenCalledWith(
+      expect(bridge.createRealtimeTranscriptionToken).toHaveBeenCalledWith(
         expect.objectContaining({
-          provider: 'elevenlabs',
-          model: 'scribe_v2',
           mode: 'neural_voice',
+          purpose: 'realtime_scribe',
         }),
       )
+      expect(bridge.transcribeAudio).not.toHaveBeenCalled()
       expect(bridge.createToolVoiceResponse).toHaveBeenCalledWith(
         expect.objectContaining({
           model: 'gpt-4.1-mini',

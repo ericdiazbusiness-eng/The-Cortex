@@ -75,6 +75,9 @@ export const createBrowserFallbackApi = (): CortexBridge => {
     async transcribeAudio() {
       throw new Error('Tool voice transcription requires the Electron runtime bridge.')
     },
+    async createRealtimeTranscriptionToken() {
+      throw new Error('Realtime transcription requires the Electron runtime bridge.')
+    },
     async createToolVoiceResponse() {
       return {
         id: `browser-response-${Date.now()}`,

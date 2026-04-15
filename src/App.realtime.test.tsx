@@ -65,6 +65,10 @@ const createApiStub = (overrides: Partial<CortexBridge> = {}): CortexBridge => (
   }),
   createRealtimeCall: vi.fn().mockResolvedValue('answer-sdp'),
   transcribeAudio: vi.fn().mockResolvedValue(''),
+  createRealtimeTranscriptionToken: vi.fn().mockResolvedValue({
+    token: 'token-1',
+    expiresAt: null,
+  }),
   createToolVoiceResponse: vi.fn().mockResolvedValue({
     id: 'response-1',
     outputText: '',
