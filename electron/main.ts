@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, session } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createCortexRuntime } from './cortex-runtime'
@@ -9,11 +9,14 @@ import type {
   CortexRealtimeDebugEntry,
   CortexRealtimeDebugEntryInput,
   CortexAbortVoiceTurnResult,
+  CortexWorkflowAssetDownloadRequest,
+  CortexWorkflowAssetDownloadResult,
   CortexRealtimeLogEntry,
   CortexRealtimeTranscriptionTokenRequest,
   CortexSpeechSynthesisRequest,
   CortexRealtimeSessionRequest,
   CortexToolVoiceResponseRequest,
+  WorkspaceContext,
 } from '../src/shared/cortex'
 import {
   attachMediaPermissionHandlers,
@@ -147,12 +150,74 @@ app.whenReady().then(async () => {
   setToolVoiceDebugReporter(recordRealtimeDebugEntry)
 
   ipcMain.handle('cortex:getDashboardSnapshot', () => runtime.getDashboardSnapshot())
+  ipcMain.handle('cortex:getWorkspaceSnapshot', (_event, workspace: WorkspaceContext) =>
+    runtime.getWorkspaceSnapshot(workspace),
+  )
   ipcMain.handle('cortex:listAgents', () => runtime.listAgents())
   ipcMain.handle('cortex:listMemories', () => runtime.listMemories())
+  ipcMain.handle('cortex:listWorkflows', () => runtime.listWorkflows())
   ipcMain.handle('cortex:listSchedules', () => runtime.listSchedules())
   ipcMain.handle('cortex:listLogs', () => runtime.listLogs())
+  ipcMain.handle('cortex:createWorkflow', (_event, payload) => runtime.createWorkflow(payload))
+  ipcMain.handle('cortex:updateWorkflow', (_event, payload) => runtime.updateWorkflow(payload))
+  ipcMain.handle('cortex:deleteWorkflow', (_event, workflowId: string) =>
+    runtime.deleteWorkflow(workflowId),
+  )
+  ipcMain.handle(
+    'cortex:downloadWorkflowAsset',
+    async (
+      _event,
+      payload: CortexWorkflowAssetDownloadRequest,
+    ): Promise<CortexWorkflowAssetDownloadResult> => {
+      const workflows = await runtime.listWorkflows()
+      const workflow = workflows.find((item) => item.id === payload.workflowId)
+      if (!workflow) {
+        throw new Error(`Workflow ${payload.workflowId} was not found.`)
+      }
+
+      const asset =
+        payload.assetKey === 'zipAsset'
+          ? workflow.zipAsset
+          : workflow[payload.assetKey]
+
+      if (!asset) {
+        throw new Error(`Workflow ${payload.workflowId} has no ${payload.assetKey} asset.`)
+      }
+
+      const ownerWindow = BrowserWindow.fromWebContents(_event.sender) ?? mainWindow ?? undefined
+      const saveResult = ownerWindow
+        ? await dialog.showSaveDialog(ownerWindow, {
+            title: `Save ${asset.fileName}`,
+            defaultPath: asset.fileName,
+          })
+        : await dialog.showSaveDialog({
+            title: `Save ${asset.fileName}`,
+            defaultPath: asset.fileName,
+          })
+
+      if (saveResult.canceled || !saveResult.filePath) {
+        return {
+          ok: true,
+          canceled: true,
+          filePath: null,
+        }
+      }
+
+      await runtime.downloadWorkflowAsset(payload, saveResult.filePath)
+      return {
+        ok: true,
+        canceled: false,
+        filePath: saveResult.filePath,
+      }
+    },
+  )
   ipcMain.handle('cortex:runCommand', (_event, commandId: string, context?: string) =>
     runtime.runCommand(commandId, context),
+  )
+  ipcMain.handle(
+    'cortex:runWorkspaceCommand',
+    (_event, workspace: WorkspaceContext, commandId: string, context?: string) =>
+      runtime.runWorkspaceCommand(workspace, commandId, context),
   )
   ipcMain.handle(
     'cortex:createRealtimeCall',

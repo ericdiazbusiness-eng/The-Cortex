@@ -1,17 +1,17 @@
-import type { CortexAgent, CortexCampaign, CortexOutreachQueueItem } from '@/shared/cortex'
+import type { CortexRoute, WorkspaceContext } from '@/shared/cortex'
 
-export type UiMode = 'scavenjer' | 'business'
+export type UiMode = WorkspaceContext
 
 export const UI_MODE_STORAGE_KEY = 'cortex-ui-mode'
-const CORE_GREETING_BY_MODE: Record<UiMode, string> = {
-  scavenjer: 'Hello Zaidek',
+export const WORKSPACE_CONTEXT_STORAGE_KEY = 'cortex-workspace-context'
+
+const CORE_GREETING_BY_MODE: Record<WorkspaceContext, string> = {
+  cortex: 'Hello Zaidek',
   business: 'Hello Eric',
 }
 
-type RoutePath = '/' | '/marketing' | '/agents' | '/memories' | '/schedules' | '/system'
-
 type NavItem = {
-  path: RoutePath
+  path: CortexRoute
   label: string
   icon: string
   detail: string
@@ -25,7 +25,7 @@ type ModeContent = {
   }
   nav: NavItem[]
   pages: Record<
-    RoutePath,
+    CortexRoute,
     {
       title: string
       subtitle: string
@@ -37,322 +37,186 @@ type ModeContent = {
     description: string
     statusLabel: string
   }
-  agents: {
-    loading: string
-    panelTitle: string
-    panelEyebrow: string
-    memoryUnit: string
-    lastActiveLabel: string
-    fallbackIcon: string
-  }
-  marketing: {
-    loading: string
-    metricsTitle: string
-    metricsEyebrow: string
-    campaignsTitle: string
-    campaignsEyebrow: string
-    queueTitle: string
-    queueEyebrow: string
-    audienceLabel: string
-    ownerLabel: string
-    dueLabel: string
-    nextActionLabel: string
-  }
-  memories: {
-    loading: string
-    panelTitle: string
-    panelEyebrow: string
-    allAgentsLabel: string
-    searchLabel: string
-    searchPlaceholder: string
-    pinnedLabel: string
-    focusTitle: string
-    focusEyebrow: string
-    empty: string
-  }
-  schedules: {
-    loading: string
-    panelTitle: string
-    panelEyebrow: string
-    lastRunLabel: string
-    nextRunLabel: string
-    driftLabel: string
-    runNowLabel: string
-    pauseLabel: string
-    retryLabel: string
-  }
-  system: {
-    loading: string
-    diagnosticsTitle: string
-    diagnosticsEyebrow: string
-    logsTitle: string
-    logsEyebrow: string
-    resultTitle: string
-    resultEyebrow: string
-    throughputLabel: string
-    memoryIntegrityLabel: string
-    activeNodesLabel: string
-    queueDepthLabel: string
-    ranAtLabel: string
-    empty: string
-  }
 }
 
-const BUSINESS_AGENT_PRESENTATION: Record<
-  string,
-  { role: string; description: string; displayName?: string }
-> = {
-  zib00: {
-    role: 'Executive operator',
-    description:
-      'Coordinates priorities, dashboards, delegation, and day-to-day business execution across the Cortex.',
+const CORTEX_NAV_ITEMS: NavItem[] = [
+  { path: '/cortex', label: 'Overview', icon: 'O', detail: 'Mission-wide operational state' },
+  { path: '/cortex/zibz', label: 'Xylos', icon: 'X', detail: 'Scavenjer autonomous operator profiles' },
+  { path: '/cortex/knowledge', label: 'Knowledge', icon: 'K', detail: 'Scavenjer doctrine, rules, and source truth' },
+  { path: '/cortex/workflows', label: 'Workflows', icon: 'W', detail: 'Drop, minting, community, and studio runbooks' },
+  { path: '/cortex/operations', label: 'Operations', icon: 'P', detail: 'Drops, hosts, rewards, and scheduling' },
+  { path: '/cortex/economy', label: 'Economy', icon: 'E', detail: 'Rewards, minting, partner proof, and risk' },
+  { path: '/cortex/community', label: 'Community', icon: 'C', detail: 'City votes, Discord, players, and hosts' },
+  { path: '/cortex/studio', label: 'Studio', icon: 'S', detail: 'Broadcast, recaps, Chronicles, and partner proof' },
+  { path: '/cortex/integrations', label: 'Integrations', icon: 'I', detail: 'Supabase, wallets, commerce, Discord, and routes' },
+]
+
+const BUSINESS_NAV_ITEMS: NavItem[] = [
+  { path: '/business', label: 'Overview', icon: 'O', detail: 'Business-wide operational state' },
+  { path: '/business/zibz', label: 'ZiBz', icon: 'Z', detail: 'Business owner autonomous operator profiles' },
+  { path: '/business/knowledge', label: 'Knowledge', icon: 'K', detail: 'Client memory, offers, and operating truth' },
+  { path: '/business/workflows', label: 'Workflows', icon: 'W', detail: 'Proposal, renewal, finance, and follow-up loops' },
+  { path: '/business/operations', label: 'Operations', icon: 'P', detail: 'Client delivery, handoffs, and commitments' },
+  { path: '/business/economy', label: 'Economy', icon: 'E', detail: 'Cash, invoices, margin, and pipeline quality' },
+  { path: '/business/community', label: 'Community', icon: 'C', detail: 'Clients, partners, referrals, and relationships' },
+  { path: '/business/studio', label: 'Studio', icon: 'S', detail: 'Proposals, case studies, decks, and offer assets' },
+  { path: '/business/integrations', label: 'Integrations', icon: 'I', detail: 'Inbox, calendar, CRM, docs, and finance tools' },
+]
+
+const CORTEX_PAGE_META: ModeContent['pages'] = {
+  '/': { title: 'Overview', subtitle: 'Mission operating signal' },
+  '/cortex': { title: 'Overview', subtitle: 'Mission operating signal' },
+  '/cortex/missions': { title: 'Xylos', subtitle: 'Mission view now lives under the selected Xylos slot' },
+  '/cortex/zibz': { title: 'Xylos', subtitle: 'Select a Xylos slot first, then reveal placeholder mission sections' },
+  '/cortex/knowledge': { title: 'Knowledge', subtitle: 'Source of truth vault, canon, and simulation memory' },
+  '/cortex/workflows': { title: 'Workflows', subtitle: 'Automations, cron jobs, diagrams, and attached bundles' },
+  '/cortex/operations': { title: 'Operations', subtitle: 'Drop planning, execution lanes, and live readiness' },
+  '/cortex/economy': { title: 'Economy', subtitle: 'Spend, efficiency, and stale operational drag' },
+  '/cortex/community': { title: 'Community', subtitle: 'What happened, what is moving, and what is stale' },
+  '/cortex/studio': { title: 'Studio', subtitle: 'Briefs, assets, approvals, and shipping pipeline' },
+  '/cortex/integrations': { title: 'Integrations', subtitle: 'Connectors, freshness, and sync failures' },
+  '/business': { title: 'Overview', subtitle: 'Business operating signal' },
+  '/business/missions': { title: 'ZiBz', subtitle: 'Mission view now lives under the selected ZiB' },
+  '/business/zibz': { title: 'ZiBz', subtitle: 'Select a ZiB first, then reveal placeholder mission sections' },
+  '/business/knowledge': { title: 'Knowledge', subtitle: 'Source of truth vault, canon, and simulation memory' },
+  '/business/workflows': { title: 'Workflows', subtitle: 'Automations, cron jobs, diagrams, and attached bundles' },
+  '/business/operations': { title: 'Operations', subtitle: 'Drop planning, execution lanes, and live readiness' },
+  '/business/economy': { title: 'Economy', subtitle: 'Spend, efficiency, and stale operational drag' },
+  '/business/community': { title: 'Community', subtitle: 'What happened, what is moving, and what is stale' },
+  '/business/studio': { title: 'Studio', subtitle: 'Briefs, assets, approvals, and shipping pipeline' },
+  '/business/integrations': { title: 'Integrations', subtitle: 'Connectors, freshness, and sync failures' },
+}
+
+const CORTEX_CONTENT: ModeContent = {
+  shell: {
+    badge: 'THE CORTEX',
+    subtitle: 'Mission OS operational lattice',
+    modeLabel: 'Cortex',
   },
-  zib001: {
-    role: 'Growth lead',
+  nav: CORTEX_NAV_ITEMS,
+  pages: CORTEX_PAGE_META,
+  overview: {
+    kicker: 'Mission OS nexus',
+    title: 'Operational sentience',
     description:
-      'Owns campaign planning, outreach sequencing, publishing rhythm, and top-of-funnel momentum for the business.',
-  },
-  zib002: {
-    role: 'Client success lead',
-    description:
-      'Tracks delivery readiness, partner coordination, and hands-on follow-through for external business activations.',
-  },
-  zib003: {
-    role: 'Finance and research lead',
-    description:
-      'Monitors automation economics, operating efficiency, system reliability, and the research signals behind smarter decisions.',
+      'A mission-first control surface for execution, approvals, agent lanes, community momentum, and operational evidence.',
+    statusLabel: 'Mission OS',
   },
 }
 
-const DISPLAY_NAME_BY_MODE: Record<UiMode, Record<string, string>> = {
-  scavenjer: {
-    zib00: 'ZiB00',
-    zib001: 'ZiB001',
-    zib002: 'ZiB002',
-    zib003: 'ZiB003',
-    'drop-ops': 'Drop Ops',
-    'ledger-watch': 'Ledger Watch',
+const BUSINESS_CONTENT: ModeContent = {
+  shell: {
+    badge: 'BUSINESS OS',
+    subtitle: 'Client, personal, and relationship control layer',
+    modeLabel: 'Business',
   },
-  business: {
-    zib00: 'Operator',
-    zib001: 'Marketing',
-    zib002: 'Client Success',
-    zib003: 'Finance / Research',
-    'drop-ops': 'Client Success',
-    'ledger-watch': 'Finance / Research',
+  nav: BUSINESS_NAV_ITEMS,
+  pages: CORTEX_PAGE_META,
+  overview: {
+    kicker: 'Business operations',
+    title: 'Relationship command',
+    description:
+      'A separate workspace for clients, delivery, personal operations, and long-horizon relationship systems.',
+    statusLabel: 'Business OS',
   },
 }
 
-const MODE_CONTENT: Record<UiMode, ModeContent> = {
-  scavenjer: {
-    shell: {
-      badge: 'THE CORTEX',
-      subtitle: 'Scavenjer operations lattice',
-      modeLabel: 'Scavenjer',
-    },
-    nav: [
-      { path: '/', label: 'Overview', icon: '◉', detail: 'Scavenjer ops state' },
-      { path: '/agents', label: 'ZiBz', icon: '⬢', detail: 'Operational roles and cycling view' },
-      { path: '/memories', label: 'Ops Memory', icon: '◈', detail: 'Pinned context and decisions' },
-      { path: '/schedules', label: 'Schedules', icon: '◷', detail: 'Cron and recurring tasks' },
-      { path: '/system', label: 'Runtime / Logs', icon: '⚙', detail: 'Diagnostics and usage' },
-    ],
-    pages: {
-      '/': { title: 'Overview', subtitle: 'Scavenjer command presence' },
-      '/marketing': { title: 'ZiBz', subtitle: 'ZiBz operational cycling view' },
-      '/agents': { title: 'ZiBz', subtitle: 'ZiBz operational cycling view' },
-      '/memories': { title: 'Ops Memory', subtitle: 'Pinned lessons, decisions, and operating context' },
-      '/schedules': { title: 'Schedules', subtitle: 'Recurring tasks, drift, and retries' },
-      '/system': { title: 'Runtime / Logs', subtitle: 'Diagnostics, usage, and execution traces' },
-    },
-    overview: {
-      kicker: 'Scavenjer central nexus',
-      title: 'Operational sentience',
-      description:
-        'A live orchestration surface for Scavenjer priorities, marketing execution, manual drop coordination, and runtime discipline.',
-      statusLabel: 'Dark mode operations',
-    },
-    agents: {
-      loading: 'Syncing agents...',
-      panelTitle: 'ZiBz operations channel',
-      panelEyebrow: 'Cycle through operational roles',
-      memoryUnit: 'memories',
-      lastActiveLabel: 'Last active',
-      fallbackIcon: 'AG',
-    },
-    marketing: {
-      loading: 'Loading ZiB001 marketing systems...',
-      metricsTitle: 'ZiB001 marketing command',
-      metricsEyebrow: 'Campaigns, outreach, and metrics',
-      campaignsTitle: 'Campaigns',
-      campaignsEyebrow: 'What ZiB001 is pushing',
-      queueTitle: 'Outreach queue',
-      queueEyebrow: 'Posts, emails, DMs, and partnerships',
-      audienceLabel: 'Audience',
-      ownerLabel: 'Owner',
-      dueLabel: 'Due',
-      nextActionLabel: 'Next action',
-    },
-    memories: {
-      loading: 'Retrieving recollections...',
-      panelTitle: 'Central memory stream',
-      panelEyebrow: 'Agent-filtered timeline',
-      allAgentsLabel: 'All agents',
-      searchLabel: 'Search memory',
-      searchPlaceholder: 'Pinned recall, anomaly, archive...',
-      pinnedLabel: 'Pinned',
-      focusTitle: 'Focused recall',
-      focusEyebrow: 'Selected memory',
-      empty: 'No memories matched the current filters.',
-    },
-    schedules: {
-      loading: 'Resolving temporal jobs...',
-      panelTitle: 'Scheduled orchestration lanes',
-      panelEyebrow: 'Cron and temporal tasks',
-      lastRunLabel: 'Last run',
-      nextRunLabel: 'Next run',
-      driftLabel: 'Drift',
-      runNowLabel: 'Run now',
-      pauseLabel: 'Pause',
-      retryLabel: 'Retry',
-    },
-    system: {
-      loading: 'Bringing diagnostics online...',
-      diagnosticsTitle: 'System diagnostics',
-      diagnosticsEyebrow: 'Core telemetry',
-      logsTitle: 'Live event stream',
-      logsEyebrow: 'Realtime logs',
-      resultTitle: 'Last command result',
-      resultEyebrow: 'Execution feedback',
-      throughputLabel: 'Throughput',
-      memoryIntegrityLabel: 'Memory integrity',
-      activeNodesLabel: 'Active nodes',
-      queueDepthLabel: 'Queue depth',
-      ranAtLabel: 'Ran at',
-      empty: 'Run a command to capture execution feedback.',
-    },
-  },
-  business: {
-    shell: {
-      badge: 'THE CORTEX',
-      subtitle: 'Business operations command hub',
-      modeLabel: 'Business',
-    },
-    nav: [
-      { path: '/', label: 'Command Hub', icon: '◉', detail: 'Executive overview' },
-      { path: '/agents', label: 'ZiBz', icon: '⬢', detail: 'Executive operational roles' },
-      { path: '/memories', label: 'Decisions', icon: '◈', detail: 'Context, notes, and recall' },
-      { path: '/schedules', label: 'Automations', icon: '◷', detail: 'Recurring business workflows' },
-      { path: '/system', label: 'Runtime / Insights', icon: '⚙', detail: 'Performance and activity' },
-    ],
-    pages: {
-      '/': { title: 'Command Hub', subtitle: 'Executive business orchestration' },
-      '/marketing': { title: 'ZiBz', subtitle: 'ZiBz operational cycling view' },
-      '/agents': { title: 'ZiBz', subtitle: 'ZiBz operational cycling view' },
-      '/memories': { title: 'Decisions', subtitle: 'Shared context, pinned learnings, and strategic memory' },
-      '/schedules': { title: 'Automations', subtitle: 'Recurring workflows, priorities, and retries' },
-      '/system': { title: 'Runtime / Insights', subtitle: 'Performance signals, telemetry, and command output' },
-    },
-    overview: {
-      kicker: 'Business command presence',
-      title: 'Executive orchestration',
-      description:
-        'A lighter Cortex skin for personal business operations, giving every agent role a premium executive surface while preserving the same orchestration engine.',
-      statusLabel: 'Business light mode',
-    },
-    agents: {
-      loading: 'Syncing executive roles...',
-      panelTitle: 'ZiBz operations channel',
-      panelEyebrow: 'Cycle through operational roles',
-      memoryUnit: 'records',
-      lastActiveLabel: 'Last signal',
-      fallbackIcon: 'EX',
-    },
-    marketing: {
-      loading: 'Loading growth systems...',
-      metricsTitle: 'Growth command',
-      metricsEyebrow: 'Campaign health, outreach, and momentum',
-      campaignsTitle: 'Growth initiatives',
-      campaignsEyebrow: 'What the business is advancing now',
-      queueTitle: 'Outreach pipeline',
-      queueEyebrow: 'Posts, email, DMs, partnerships, and follow-through',
-      audienceLabel: 'Audience',
-      ownerLabel: 'Role',
-      dueLabel: 'Target date',
-      nextActionLabel: 'Next move',
-    },
-    memories: {
-      loading: 'Retrieving decision records...',
-      panelTitle: 'Decision stream',
-      panelEyebrow: 'Role-filtered context timeline',
-      allAgentsLabel: 'All roles',
-      searchLabel: 'Search decisions',
-      searchPlaceholder: 'Client note, strategy, finance, growth...',
-      pinnedLabel: 'Pinned',
-      focusTitle: 'Focused decision',
-      focusEyebrow: 'Selected record',
-      empty: 'No decision records matched the current filters.',
-    },
-    schedules: {
-      loading: 'Resolving business automations...',
-      panelTitle: 'Automation lanes',
-      panelEyebrow: 'Recurring business workflows',
-      lastRunLabel: 'Last run',
-      nextRunLabel: 'Next run',
-      driftLabel: 'Delay',
-      runNowLabel: 'Run now',
-      pauseLabel: 'Pause',
-      retryLabel: 'Retry',
-    },
-    system: {
-      loading: 'Bringing insights online...',
-      diagnosticsTitle: 'Runtime insights',
-      diagnosticsEyebrow: 'Executive telemetry',
-      logsTitle: 'Activity stream',
-      logsEyebrow: 'Realtime insights',
-      resultTitle: 'Latest command result',
-      resultEyebrow: 'Execution feedback',
-      throughputLabel: 'Throughput',
-      memoryIntegrityLabel: 'Integrity',
-      activeNodesLabel: 'Active roles',
-      queueDepthLabel: 'Queue depth',
-      ranAtLabel: 'Ran at',
-      empty: 'Run a workflow to capture execution feedback.',
-    },
-  },
+const MODE_CONTENT: Record<WorkspaceContext, ModeContent> = {
+  cortex: CORTEX_CONTENT,
+  business: BUSINESS_CONTENT,
 }
 
 export const getModeContent = (uiMode: UiMode) => MODE_CONTENT[uiMode]
 
 export const getCoreGreeting = (uiMode: UiMode) => CORE_GREETING_BY_MODE[uiMode]
 
-export const getPageMeta = (uiMode: UiMode, pathname: string) =>
-  MODE_CONTENT[uiMode].pages[(pathname as RoutePath) ?? '/'] ?? MODE_CONTENT[uiMode].pages['/']
+export const getWorkspaceHomeRoute = (workspace: WorkspaceContext): CortexRoute =>
+  workspace === 'business' ? '/business' : '/cortex'
 
-export const getDisplayName = (id: string, uiMode: UiMode) =>
-  DISPLAY_NAME_BY_MODE[uiMode][id] ?? id
+export const getWorkspaceRouteOptions = (workspace: WorkspaceContext): CortexRoute[] =>
+  workspace === 'business'
+    ? [
+        '/business',
+        '/business/missions',
+        '/business/zibz',
+        '/business/knowledge',
+        '/business/workflows',
+        '/business/operations',
+        '/business/economy',
+        '/business/community',
+        '/business/studio',
+        '/business/integrations',
+      ]
+    : [
+        '/cortex',
+        '/cortex/missions',
+        '/cortex/zibz',
+        '/cortex/knowledge',
+        '/cortex/workflows',
+        '/cortex/operations',
+        '/cortex/economy',
+        '/cortex/community',
+        '/cortex/studio',
+        '/cortex/integrations',
+      ]
 
-export const getAgentPresentation = (agent: CortexAgent, uiMode: UiMode) => {
-  if (uiMode === 'business') {
-    const presentation = BUSINESS_AGENT_PRESENTATION[agent.id]
-    return {
-      displayName: presentation?.displayName ?? getDisplayName(agent.id, uiMode),
-      role: presentation?.role ?? agent.role,
-      description: presentation?.description ?? agent.description,
-    }
+export const getWorkspaceFromRoute = (pathname: string): WorkspaceContext =>
+  pathname.startsWith('/business') ? 'business' : 'cortex'
+
+export const resolveStoredWorkspaceContext = (): WorkspaceContext => {
+  if (typeof window === 'undefined') {
+    return 'cortex'
   }
 
-  return {
-    displayName: agent.name,
-    role: agent.role,
-    description: agent.description,
+  const storage = window.localStorage
+  const storedWorkspace =
+    storage && typeof storage.getItem === 'function'
+      ? storage.getItem(WORKSPACE_CONTEXT_STORAGE_KEY)
+      : null
+
+  if (storedWorkspace === 'business' || storedWorkspace === 'cortex') {
+    return storedWorkspace
+  }
+
+  const legacyWorkspace =
+    storage && typeof storage.getItem === 'function'
+      ? storage.getItem(UI_MODE_STORAGE_KEY)
+      : null
+
+  return legacyWorkspace === 'business' ? 'business' : 'cortex'
+}
+
+export const normalizeLegacyRoute = (pathname: string): CortexRoute => {
+  switch (pathname) {
+    case '/':
+      return '/cortex'
+    case '/missions':
+      return '/cortex/missions'
+    case '/zibz':
+      return '/cortex/zibz'
+    case '/knowledge':
+      return '/cortex/knowledge'
+    case '/workflows':
+      return '/cortex/workflows'
+    case '/operations':
+      return '/cortex/operations'
+    case '/economy':
+      return '/cortex/economy'
+    case '/community':
+      return '/cortex/community'
+    case '/studio':
+      return '/cortex/studio'
+    case '/integrations':
+      return '/cortex/integrations'
+    default:
+      return pathname as CortexRoute
   }
 }
 
-export const getCampaignOwner = (campaign: CortexCampaign, uiMode: UiMode) =>
-  getDisplayName(campaign.ownerAgentId, uiMode)
-
-export const getOutreachOwner = (
-  item: CortexOutreachQueueItem,
-  uiMode: UiMode,
-) => getDisplayName(item.ownerAgentId, uiMode)
+export const getPageMeta = (uiMode: UiMode, pathname: string) => {
+  const resolvedRoute = normalizeLegacyRoute(pathname)
+  return (
+    MODE_CONTENT[uiMode].pages[resolvedRoute] ??
+    MODE_CONTENT[uiMode].pages[getWorkspaceHomeRoute(uiMode)]
+  )
+}

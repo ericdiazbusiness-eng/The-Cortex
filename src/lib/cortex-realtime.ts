@@ -2,7 +2,6 @@ import {
   DEFAULT_REALTIME_STATE,
   getRealtimeModeProfile,
   type CortexBridge,
-  type CortexDashboardSnapshot,
   type CortexRealtimeDebugEntryInput,
   type CortexRealtimeMode,
   type CortexRealtimeSessionRequest,
@@ -10,11 +9,12 @@ import {
   type CortexRealtimeStatus,
   type CortexRealtimeToolCall,
   type CortexRealtimeToolDefinition,
-  type CortexRoute,
   type CortexSystemMetricKey,
   type CortexToolVoiceInputItem,
   type CortexViewContext,
+  type WorkspaceSnapshot,
 } from '@/shared/cortex'
+import { getWorkspaceRouteOptions } from '@/lib/ui-mode'
 
 type ToolCallHandler = (call: CortexRealtimeToolCall) => Promise<unknown>
 
@@ -173,7 +173,6 @@ const TOOL_VOICE_RECORDER_MIME_TYPES = [
 const DEFAULT_TRANSCRIPTION_MODEL = 'gpt-4o-mini-transcribe'
 const DEFAULT_TEXT_MODEL = 'gpt-4.1-mini'
 const DEFAULT_SPEECH_MODEL = 'gpt-4o-mini-tts'
-const ROUTE_OPTIONS: CortexRoute[] = ['/', '/agents', '/memories', '/schedules', '/system']
 const SYSTEM_METRIC_OPTIONS: CortexSystemMetricKey[] = [
   'throughput',
   'memoryIntegrity',
@@ -310,13 +309,17 @@ const encodePcm16Base64 = (
 }
 
 export const buildRealtimeToolDefinitions = (
-  snapshot: CortexDashboardSnapshot | null,
+  workspaceSnapshot: WorkspaceSnapshot | null,
 ): CortexRealtimeToolDefinition[] => {
-  const commandIds = snapshot?.commands.map((command) => command.id) ?? []
-  const agentIds = snapshot?.agents.map((agent) => agent.id) ?? []
-  const memoryIds = snapshot?.memories.map((memory) => memory.id) ?? []
-  const jobIds = snapshot?.jobs.map((job) => job.id) ?? []
-  const marketingMetricIds = snapshot?.marketingMetrics.map((metric) => metric.id) ?? []
+  const snapshot =
+    workspaceSnapshot?.workspace === 'cortex' ? workspaceSnapshot.dashboard : null
+  const activeWorkspace = workspaceSnapshot?.workspace ?? 'cortex'
+  const commandIds = workspaceSnapshot?.dashboard.commands.map((command) => command.id) ?? []
+  const agentIds = snapshot?.agentLanes.map((lane) => lane.id) ?? []
+  const memoryIds = snapshot?.vaultEntries.map((entry) => entry.id) ?? []
+  const workflowIds = snapshot?.workflows.map((workflow) => workflow.id) ?? []
+  const jobIds = snapshot?.drops.map((drop) => drop.id) ?? []
+  const marketingMetricIds = snapshot?.studioAssets.map((asset) => asset.id) ?? []
   const nullableStringSchema = (description: string, enumValues?: string[]) => ({
     type: ['string', 'null'],
     description,
@@ -327,88 +330,16 @@ export const buildRealtimeToolDefinitions = (
     description,
   })
 
-  return [
+  const baseTools: CortexRealtimeToolDefinition[] = [
     {
       type: 'function',
       strict: true,
       name: 'get_dashboard_snapshot',
-      description: 'Return the full structured dashboard snapshot for the current Cortex session.',
+      description: 'Return the full structured snapshot for the current workspace session.',
       parameters: {
         type: 'object',
         properties: {},
         required: [],
-        additionalProperties: false,
-      },
-    },
-    {
-      type: 'function',
-      strict: true,
-      name: 'get_system_metrics',
-      description: 'Return the current system health metrics from the dashboard snapshot.',
-      parameters: {
-        type: 'object',
-        properties: {},
-        required: [],
-        additionalProperties: false,
-      },
-    },
-    {
-      type: 'function',
-      strict: true,
-      name: 'list_agents',
-      description: 'List known agents, optionally filtered by agent status.',
-      parameters: {
-        type: 'object',
-        properties: {
-          status: nullableStringSchema('Optional agent status filter.'),
-        },
-        required: ['status'],
-        additionalProperties: false,
-      },
-    },
-    {
-      type: 'function',
-      strict: true,
-      name: 'list_memories',
-      description: 'List memories, with optional filtering by agent ID or free-text search.',
-      parameters: {
-        type: 'object',
-        properties: {
-          agentId: nullableStringSchema('Optional agent ID filter.', agentIds),
-          query: nullableStringSchema(
-            'Optional free-text filter over memory title, detail, and keywords.',
-          ),
-          limit: nullableNumberSchema('Optional result limit.'),
-        },
-        required: ['agentId', 'query', 'limit'],
-        additionalProperties: false,
-      },
-    },
-    {
-      type: 'function',
-      strict: true,
-      name: 'list_schedules',
-      description: 'List scheduled jobs, optionally filtered by job status.',
-      parameters: {
-        type: 'object',
-        properties: {
-          status: nullableStringSchema('Optional job status filter.'),
-        },
-        required: ['status'],
-        additionalProperties: false,
-      },
-    },
-    {
-      type: 'function',
-      strict: true,
-      name: 'list_recent_logs',
-      description: 'List recent log events from the current runtime.',
-      parameters: {
-        type: 'object',
-        properties: {
-          limit: nullableNumberSchema('Maximum number of log events to return.'),
-        },
-        required: ['limit'],
         additionalProperties: false,
       },
     },
@@ -416,7 +347,7 @@ export const buildRealtimeToolDefinitions = (
       type: 'function',
       strict: true,
       name: 'get_ui_context',
-      description: 'Return the current route, mode, and page-local context from the UI.',
+      description: 'Return the current route, workspace, and page-local context from the UI.',
       parameters: {
         type: 'object',
         properties: {},
@@ -435,7 +366,7 @@ export const buildRealtimeToolDefinitions = (
           route: {
             type: 'string',
             description: 'Dashboard route to open.',
-            enum: ROUTE_OPTIONS,
+            enum: getWorkspaceRouteOptions(activeWorkspace),
           },
         },
         required: ['route'],
@@ -445,14 +376,131 @@ export const buildRealtimeToolDefinitions = (
     {
       type: 'function',
       strict: true,
+      name: 'run_command',
+      description:
+        'Run one of the currently available workspace commands. Use only when the user explicitly asks to execute an action.',
+      parameters: {
+        type: 'object',
+        properties: {
+          commandId: {
+            type: 'string',
+            description: 'Command ID to execute.',
+            enum: commandIds,
+          },
+          context: nullableStringSchema('Short explanation of why this command is being run.'),
+        },
+        required: ['commandId', 'context'],
+        additionalProperties: false,
+      },
+    },
+  ]
+
+  if (!snapshot) {
+    return baseTools
+  }
+
+  return [
+    ...baseTools,
+    {
+      type: 'function',
+      strict: true,
+      name: 'get_system_metrics',
+      description: 'Return the current system health metrics from the dashboard snapshot.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'list_agents',
+      description: 'List known agent lanes, optionally filtered by lane status.',
+      parameters: {
+        type: 'object',
+        properties: {
+          status: nullableStringSchema('Optional agent status filter.'),
+        },
+        required: ['status'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'list_memories',
+      description: 'List knowledge vault entries, with optional filtering by lane ID or free-text search.',
+      parameters: {
+        type: 'object',
+        properties: {
+          agentId: nullableStringSchema('Optional lane ID filter.', agentIds),
+          query: nullableStringSchema(
+            'Optional free-text filter over vault title, summary, and tags.',
+          ),
+          limit: nullableNumberSchema('Optional result limit.'),
+        },
+        required: ['agentId', 'query', 'limit'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'list_workflows',
+      description: 'List workflow records, with optional free-text search over titles, tools, and architecture.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: nullableStringSchema(
+            'Optional free-text filter over workflow title, description, architecture, and tools.',
+          ),
+          limit: nullableNumberSchema('Optional result limit.'),
+        },
+        required: ['query', 'limit'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'list_schedules',
+      description: 'List operations drops, optionally filtered by drop status.',
+      parameters: {
+        type: 'object',
+        properties: {
+          status: nullableStringSchema('Optional job status filter.'),
+        },
+        required: ['status'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'list_recent_logs',
+      description: 'List recent audit and runtime events from the current mission snapshot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: nullableNumberSchema('Maximum number of log events to return.'),
+        },
+        required: ['limit'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
       name: 'focus_agent',
-      description: 'Open the ZiBz page and focus a specific agent card.',
+      description: 'Open the ZiBz page and focus a specific agent lane.',
       parameters: {
         type: 'object',
         properties: {
           agentId: {
             type: 'string',
-            description: 'Agent ID to focus.',
+            description: 'Lane ID to focus.',
             enum: agentIds,
           },
         },
@@ -464,18 +512,35 @@ export const buildRealtimeToolDefinitions = (
       type: 'function',
       strict: true,
       name: 'focus_memory',
-      description: 'Open Ops Memory and focus a specific memory record.',
+      description: 'Open Knowledge and focus a specific vault record.',
       parameters: {
         type: 'object',
         properties: {
           memoryId: {
             type: 'string',
-            description: 'Memory ID to focus.',
+            description: 'Vault entry ID to focus.',
             enum: memoryIds,
           },
-          agentId: nullableStringSchema('Optional agent ID filter to apply first.', agentIds),
         },
-        required: ['memoryId', 'agentId'],
+        required: ['memoryId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'focus_workflow',
+      description: 'Open Workflows and focus a specific workflow record.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workflowId: {
+            type: 'string',
+            description: 'Workflow ID to focus.',
+            enum: workflowIds,
+          },
+        },
+        required: ['workflowId'],
         additionalProperties: false,
       },
     },
@@ -483,13 +548,13 @@ export const buildRealtimeToolDefinitions = (
       type: 'function',
       strict: true,
       name: 'focus_schedule',
-      description: 'Open Schedules and focus a specific scheduled job.',
+      description: 'Open Operations and focus a specific drop.',
       parameters: {
         type: 'object',
         properties: {
           jobId: {
             type: 'string',
-            description: 'Scheduled job ID to focus.',
+            description: 'Drop ID to focus.',
             enum: jobIds,
           },
         },
@@ -501,7 +566,7 @@ export const buildRealtimeToolDefinitions = (
       type: 'function',
       strict: true,
       name: 'focus_system_metric',
-      description: 'Open Runtime / Logs and highlight a specific diagnostic metric card.',
+      description: 'Open Economy and highlight a specific diagnostic metric card.',
       parameters: {
         type: 'object',
         properties: {
@@ -520,37 +585,17 @@ export const buildRealtimeToolDefinitions = (
       strict: true,
       name: 'focus_marketing_metric',
       description:
-        'Open the ZiB001 marketing lane on the ZiBz page and highlight a specific marketing metric.',
+        'Open Studio and highlight a specific content pipeline asset.',
       parameters: {
         type: 'object',
         properties: {
           metricId: {
             type: 'string',
-            description: 'Marketing metric ID to highlight.',
+            description: 'Studio asset ID to highlight.',
             enum: marketingMetricIds,
           },
         },
         required: ['metricId'],
-        additionalProperties: false,
-      },
-    },
-    {
-      type: 'function',
-      strict: true,
-      name: 'run_command',
-      description:
-        'Run one of the currently available Cortex commands. Use only when the user explicitly asks to execute an action.',
-      parameters: {
-        type: 'object',
-        properties: {
-          commandId: {
-            type: 'string',
-            description: 'Command ID to execute.',
-            enum: commandIds,
-          },
-          context: nullableStringSchema('Short explanation of why this command is being run.'),
-        },
-        required: ['commandId', 'context'],
         additionalProperties: false,
       },
     },
@@ -572,12 +617,18 @@ const describeToolPriority = (toolGroups: CortexRealtimeSessionRequest['preferre
   toolGroups.join(' -> ')
 
 export const buildRealtimeInstructions = (
-  snapshot: CortexDashboardSnapshot | null,
+  workspaceSnapshot: WorkspaceSnapshot | null,
   viewContext: CortexViewContext,
   realtimeMode: CortexRealtimeMode,
 ) => {
+  const snapshot =
+    workspaceSnapshot?.workspace === 'cortex' ? workspaceSnapshot.dashboard : null
   const commands =
-    snapshot?.commands.length
+    workspaceSnapshot?.dashboard.commands.length
+      ? workspaceSnapshot.dashboard.commands
+          .map((command) => `${command.id}: ${command.description}`)
+          .join('\n')
+      : snapshot?.commands.length
       ? snapshot.commands.map((command) => `${command.id}: ${command.description}`).join('\n')
       : 'No commands are currently available.'
   const modeProfile = getRealtimeModeProfile(realtimeMode)
@@ -618,7 +669,7 @@ export const buildRealtimeInstructions = (
     `Mode navigation policy: ${modeProfile.navigationPolicy}.`,
     `Current route: ${viewContext.routeTitle} (${viewContext.route}).`,
     `Current route subtitle: ${viewContext.routeSubtitle}.`,
-    `Current UI mode: ${viewContext.uiMode}.`,
+    `Current workspace: ${viewContext.workspace}.`,
     `Current UI details: ${stringifyViewDetails(viewContext.details)}.`,
     'Available command IDs:',
     commands,
@@ -626,12 +677,12 @@ export const buildRealtimeInstructions = (
 }
 
 export const buildRealtimeSessionRequest = (
-  snapshot: CortexDashboardSnapshot | null,
+  workspaceSnapshot: WorkspaceSnapshot | null,
   viewContext: CortexViewContext,
   realtimeMode: CortexRealtimeMode,
 ): CortexRealtimeSessionRequest => ({
-  instructions: buildRealtimeInstructions(snapshot, viewContext, realtimeMode),
-  tools: buildRealtimeToolDefinitions(snapshot),
+  instructions: buildRealtimeInstructions(workspaceSnapshot, viewContext, realtimeMode),
+  tools: buildRealtimeToolDefinitions(workspaceSnapshot),
   context: viewContext,
   mode: realtimeMode,
   runtime: getRealtimeModeProfile(realtimeMode).runtime,

@@ -35,11 +35,12 @@ export const CoreMind = ({
     const isOn = visualState === 'on'
     const activityScale = isOn ? 1.18 : 0.46
     const primary = uiMode === 'business'
-        ? '95, 196, 214'
-        : '103, 244, 255'
+      ? '0, 178, 214'
+      : '103, 244, 255'
     const core = uiMode === 'business'
-        ? '197, 161, 90'
-        : '24, 217, 255'
+      ? '0, 229, 255'
+      : '24, 217, 255'
+    const uiBoost = uiMode === 'business' ? 1.8 : 1
     const brainPoints = generateBrainPoints(cx, cy, size * 0.36)
 
     let animId: number
@@ -48,11 +49,11 @@ export const CoreMind = ({
 
       const rotPhase = time * 0.0003 * activityScale
       const scanY = cy + Math.sin(time * 0.0011 * activityScale) * size * 0.35
-      const stateGlow = isOn ? 0.26 : 0.035
-      const lineAlpha = isOn ? 1 : 0.14
-      const pointAlphaScale = isOn ? 1 : 0.3
+      const stateGlow = (isOn ? 0.26 : 0.06) * uiBoost
+      const lineAlpha = (isOn ? 1 : 0.22) * (uiMode === 'business' ? 1.4 : 1)
+      const pointAlphaScale = (isOn ? 1 : 0.44) * (uiMode === 'business' ? 1.22 : 1)
 
-      ctx.lineWidth = 0.8
+      ctx.lineWidth = uiMode === 'business' ? 1.15 : 0.8
       for (let i = 0; i < brainPoints.length; i++) {
         const p1 = brainPoints[i]
         const x1 = cx + (p1.x - cx) * Math.cos(rotPhase)
@@ -89,16 +90,22 @@ export const CoreMind = ({
         const y = p.y
         const distToScan = Math.abs(y - scanY)
         const scanGlow = isOn ? Math.max(0, 1 - distToScan / 50) : 0
-        const pulse = (isOn ? 0.38 : 0.16) + 0.18 * Math.sin(time * 0.0034 * activityScale + p.phase)
+        const pulse =
+          (isOn ? 0.38 : 0.22) +
+          0.18 * Math.sin(time * 0.0034 * activityScale + p.phase) +
+          (uiMode === 'business' ? 0.08 : 0)
 
         ctx.beginPath()
         ctx.arc(x, y, p.r * (1 + scanGlow * 0.6), 0, Math.PI * 2)
         ctx.fillStyle = `rgba(${primary}, ${pulse + scanGlow * 0.3 + stateGlow * 0.3})`
         ctx.fill()
 
-        if (scanGlow > 0.2 && isOn) {
+        if (scanGlow > 0.2 || uiMode === 'business') {
           const glow = ctx.createRadialGradient(x, y, 0, x, y, p.r * 6)
-          glow.addColorStop(0, `rgba(${primary}, ${scanGlow * 0.6})`)
+          glow.addColorStop(
+            0,
+            `rgba(${primary}, ${(scanGlow > 0.2 ? scanGlow * 0.6 : 0.14) * (uiMode === 'business' ? 1.2 : 1)})`,
+          )
           glow.addColorStop(1, 'transparent')
           ctx.fillStyle = glow
           ctx.fillRect(x - p.r * 6, y - p.r * 6, p.r * 12, p.r * 12)
@@ -113,14 +120,14 @@ export const CoreMind = ({
       scanGrad.addColorStop(0.7, `rgba(${primary}, ${0.5 * lineAlpha})`)
       scanGrad.addColorStop(1, 'transparent')
       ctx.strokeStyle = scanGrad
-      ctx.lineWidth = isOn ? 2 : 1
+      ctx.lineWidth = isOn ? (uiMode === 'business' ? 2.6 : 2) : uiMode === 'business' ? 1.5 : 1
       ctx.moveTo(cx - size * 0.4, scanY)
       ctx.lineTo(cx + size * 0.4, scanY)
       ctx.stroke()
 
       const coreGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, size * 0.3)
-      coreGlow.addColorStop(0, `rgba(${core}, ${isOn ? 0.14 : 0.035})`)
-      coreGlow.addColorStop(0.5, `rgba(${core}, ${isOn ? 0.06 : 0.012})`)
+      coreGlow.addColorStop(0, `rgba(${core}, ${(isOn ? 0.14 : 0.035) * uiBoost})`)
+      coreGlow.addColorStop(0.5, `rgba(${core}, ${(isOn ? 0.06 : 0.012) * uiBoost})`)
       coreGlow.addColorStop(1, 'transparent')
       ctx.fillStyle = coreGlow
       ctx.fillRect(0, 0, size, size)

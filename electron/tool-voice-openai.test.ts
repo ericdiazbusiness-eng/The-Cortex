@@ -174,4 +174,30 @@ describe('tool-voice-openai helpers', () => {
       ],
     })
   })
+
+  it('adds an API key hint when OpenAI rejects the Responses request with 401', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: vi.fn().mockResolvedValue({
+        error: {
+          message: 'Incorrect API key provided.',
+          type: 'invalid_request_error',
+          code: 'invalid_api_key',
+        },
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      createToolVoiceResponse({
+        model: 'gpt-4o-mini',
+        instructions: 'Use tools first.',
+        tools: [],
+        input: [{ type: 'message', role: 'user', content: 'Show queue depth.' }],
+        previousResponseId: null,
+      }),
+    ).rejects.toThrow(/OPENAI_API_KEY; OpenAI rejected the key as invalid or expired/i)
+  })
 })

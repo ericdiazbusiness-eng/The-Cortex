@@ -1,7 +1,20 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
-const ENV_FILES = ['.env.local', '.env']
+const resolveEnvFiles = () => {
+  const mode =
+    process.env.VITE_DEV_SERVER_URL?.trim()
+      ? 'development'
+      : process.env.NODE_ENV?.trim() || null
+
+  const files = ['.env.local', '.env']
+
+  if (!mode) {
+    return files
+  }
+
+  return [`.env.${mode}.local`, '.env.local', `.env.${mode}`, '.env']
+}
 
 const stripWrappingQuotes = (value: string) => {
   if (
@@ -40,7 +53,7 @@ const parseEnvContents = (contents: string) => {
 }
 
 export const loadProjectEnv = (projectRoot: string) => {
-  for (const fileName of ENV_FILES) {
+  for (const fileName of resolveEnvFiles()) {
     const envPath = path.resolve(projectRoot, fileName)
     if (!existsSync(envPath)) {
       continue
@@ -57,4 +70,5 @@ export const loadProjectEnv = (projectRoot: string) => {
 
 export const __private__ = {
   parseEnvContents,
+  resolveEnvFiles,
 }

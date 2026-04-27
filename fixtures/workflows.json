@@ -1,0 +1,50 @@
+[
+  {
+    "id": "workflow-notion-sync",
+    "title": "Notion Vault Sync",
+    "description": "Refreshes doctrine pages, pulls decision updates, and republishes approved source-of-truth entries into the Cortex knowledge surface.",
+    "toolsUsed": ["Notion API", "Node runtime", "Cortex sync command"],
+    "architecture": "A scheduled trigger starts the sync runner, pulls the latest Notion documents, normalizes the payload, then updates the local workflow registry and the knowledge snapshot.",
+    "diagramSource": {
+      "path": "fixtures/workflow-assets/workflow-notion-sync/notion-vault-sync.excalidraw",
+      "fileName": "notion-vault-sync.excalidraw",
+      "mimeType": "application/vnd.excalidraw+json",
+      "sizeBytes": 2492,
+      "uploadedAt": "2026-04-19T09:08:00.000Z"
+    },
+    "diagramPreview": {
+      "path": "fixtures/workflow-assets/workflow-notion-sync/notion-vault-sync-preview.svg",
+      "fileName": "notion-vault-sync-preview.svg",
+      "mimeType": "image/svg+xml",
+      "sizeBytes": 1736,
+      "uploadedAt": "2026-04-19T09:08:00.000Z"
+    },
+    "zipAsset": null,
+    "updatedAt": "2026-04-19T09:08:00.000Z",
+    "accent": "cyan"
+  },
+  {
+    "id": "workflow-reward-audit",
+    "title": "Reward Budget Audit",
+    "description": "Checks recurring automation spend, flags retry storms, and publishes a concise approval packet for blocked operations.",
+    "toolsUsed": ["Audit agent", "Economy command", "Spreadsheet export"],
+    "architecture": "The scheduler launches the audit command, compares current spend against the baseline, writes evidence to the audit stream, and exposes an approval-ready summary for operations.",
+    "diagramSource": {
+      "path": "fixtures/workflow-assets/workflow-reward-audit/reward-budget-audit.excalidraw",
+      "fileName": "reward-budget-audit.excalidraw",
+      "mimeType": "application/vnd.excalidraw+json",
+      "sizeBytes": 2378,
+      "uploadedAt": "2026-04-19T08:42:00.000Z"
+    },
+    "diagramPreview": {
+      "path": "fixtures/workflow-assets/workflow-reward-audit/reward-budget-audit-preview.svg",
+      "fileName": "reward-budget-audit-preview.svg",
+      "mimeType": "image/svg+xml",
+      "sizeBytes": 1762,
+      "uploadedAt": "2026-04-19T08:42:00.000Z"
+    },
+    "zipAsset": null,
+    "updatedAt": "2026-04-19T08:42:00.000Z",
+    "accent": "amber"
+  }
+]

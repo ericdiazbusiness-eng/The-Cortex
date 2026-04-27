@@ -1,0 +1,145 @@
+{
+  "metrics": [
+    {
+      "id": "business-revenue",
+      "label": "Revenue Pipeline",
+      "value": "$42k",
+      "detail": "Open proposals and retained client work across the current cycle.",
+      "accent": "green"
+    },
+    {
+      "id": "business-touchpoints",
+      "label": "Relationship Touches",
+      "value": "18",
+      "detail": "Scheduled outreach, follow-ups, and personal relationship check-ins.",
+      "accent": "cyan"
+    },
+    {
+      "id": "business-delivery",
+      "label": "Delivery Queue",
+      "value": "5 active",
+      "detail": "Current delivery commitments across clients and internal business ops.",
+      "accent": "amber"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "relationship-northstar",
+      "name": "Northstar Creative",
+      "type": "client",
+      "stage": "active",
+      "summary": "Retainer client with two open deliverables and a renewal conversation this week.",
+      "lastTouch": "2026-04-23T16:00:00.000Z",
+      "nextTouch": "2026-04-28T15:30:00.000Z",
+      "accent": "cyan"
+    },
+    {
+      "id": "relationship-jordan",
+      "name": "Jordan Vale",
+      "type": "partner",
+      "stage": "nurture",
+      "summary": "Strategic partner relationship tied to a referral pipeline and future collaboration.",
+      "lastTouch": "2026-04-21T18:30:00.000Z",
+      "nextTouch": "2026-04-29T17:00:00.000Z",
+      "accent": "magenta"
+    },
+    {
+      "id": "relationship-family",
+      "name": "Personal Network",
+      "type": "personal",
+      "stage": "watch",
+      "summary": "A dedicated lane for family and personal relationship upkeep without client noise.",
+      "lastTouch": "2026-04-20T12:00:00.000Z",
+      "nextTouch": "2026-04-27T12:00:00.000Z",
+      "accent": "green"
+    }
+  ],
+  "queue": [
+    {
+      "id": "business-queue-proposal",
+      "title": "Renewal proposal for Northstar Creative",
+      "owner": "Eric",
+      "status": "active",
+      "nextAction": "Finalize commercial terms and send proposal packet.",
+      "dueAt": "2026-04-29T18:00:00.000Z",
+      "accent": "green"
+    },
+    {
+      "id": "business-queue-followup",
+      "title": "Quarterly relationship follow-up batch",
+      "owner": "Eric",
+      "status": "queued",
+      "nextAction": "Send the next relationship touchpoint sequence.",
+      "dueAt": "2026-04-30T17:00:00.000Z",
+      "accent": "cyan"
+    },
+    {
+      "id": "business-queue-cash",
+      "title": "Invoice reconciliation",
+      "owner": "Finance lane",
+      "status": "blocked",
+      "nextAction": "Confirm one outstanding payment before closing the month.",
+      "dueAt": "2026-05-01T20:00:00.000Z",
+      "accent": "amber"
+    }
+  ],
+  "sections": [
+    {
+      "id": "business-section-clients",
+      "route": "/business/clients",
+      "title": "Clients",
+      "description": "Client accounts, proposals, retainers, and delivery relationships.",
+      "status": "placeholder",
+      "accent": "cyan"
+    },
+    {
+      "id": "business-section-relationships",
+      "route": "/business/relationships",
+      "title": "Relations",
+      "description": "Personal, partner, and network relationship systems.",
+      "status": "placeholder",
+      "accent": "magenta"
+    },
+    {
+      "id": "business-section-delivery",
+      "route": "/business/delivery",
+      "title": "Delivery",
+      "description": "Fulfillment, promises, and active commitments.",
+      "status": "placeholder",
+      "accent": "amber"
+    },
+    {
+      "id": "business-section-finance",
+      "route": "/business/finance",
+      "title": "Finance",
+      "description": "Cash flow, invoices, revenue forecasting, and commitments.",
+      "status": "placeholder",
+      "accent": "green"
+    }
+  ],
+  "commands": [
+    {
+      "id": "refresh-business-pipeline",
+      "label": "Refresh Pipeline",
+      "description": "Refresh business pipeline metrics and upcoming relationship actions.",
+      "scope": "community",
+      "tone": "primary",
+      "command": "node",
+      "args": [
+        "scripts/cortex-command.mjs",
+        "refresh-business-pipeline"
+      ],
+      "cwd": "."
+    }
+  ],
+  "system": {
+    "neuralLoad": 61,
+    "signalCoherence": 92,
+    "memoryIntegrity": 97,
+    "throughput": 70,
+    "activeNodes": 6,
+    "queueDepth": 7,
+    "runtimeSeconds": 128540,
+    "lastUpdated": "2026-04-25T19:24:00.000Z"
+  }
+}

@@ -6,11 +6,20 @@ import type {
 } from '../src/shared/cortex'
 
 const cortexApi: CortexBridge = {
+  getWorkspaceSnapshot: (workspace) =>
+    ipcRenderer.invoke('cortex:getWorkspaceSnapshot', workspace),
   getDashboardSnapshot: () => ipcRenderer.invoke('cortex:getDashboardSnapshot'),
   listAgents: () => ipcRenderer.invoke('cortex:listAgents'),
   listMemories: () => ipcRenderer.invoke('cortex:listMemories'),
+  listWorkflows: () => ipcRenderer.invoke('cortex:listWorkflows'),
   listSchedules: () => ipcRenderer.invoke('cortex:listSchedules'),
   listLogs: () => ipcRenderer.invoke('cortex:listLogs'),
+  createWorkflow: (payload) => ipcRenderer.invoke('cortex:createWorkflow', payload),
+  updateWorkflow: (payload) => ipcRenderer.invoke('cortex:updateWorkflow', payload),
+  deleteWorkflow: (workflowId) => ipcRenderer.invoke('cortex:deleteWorkflow', workflowId),
+  downloadWorkflowAsset: (payload) => ipcRenderer.invoke('cortex:downloadWorkflowAsset', payload),
+  runWorkspaceCommand: (workspace, commandId, context) =>
+    ipcRenderer.invoke('cortex:runWorkspaceCommand', workspace, commandId, context),
   runCommand: (commandId, context) =>
     ipcRenderer.invoke('cortex:runCommand', commandId, context),
   createRealtimeCall: (offerSdp, payload) =>

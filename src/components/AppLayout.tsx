@@ -3,7 +3,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatedBackground } from './AnimatedBackground'
 import { useCortex } from '@/hooks/useCortex'
-import { getModeContent, getPageMeta } from '@/lib/ui-mode'
+import {
+  getModeContent,
+  getPageMeta,
+  getWorkspaceHomeRoute,
+  normalizeLegacyRoute,
+} from '@/lib/ui-mode'
 import {
   getRealtimeModeProfile,
   getVisibleRealtimeModes,
@@ -24,7 +29,6 @@ const MODE_FLASH_MS = 900
 export const AppLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const locationPathRef = useRef(location.pathname)
   const modeFlashTickRef = useRef(0)
   const [modeFlash, setModeFlash] = useState<{
     mode: CortexRealtimeMode
@@ -36,14 +40,47 @@ export const AppLayout = () => {
     navigateUi,
     realtimeMode,
     setRealtimeMode,
+    snapshot,
+    businessSnapshot,
+    syncUiRoute,
     uiFocus,
     uiMode,
     setViewContext,
     toggleUiMode,
   } = useCortex()
   const content = getModeContent(uiMode)
-  const isOverview = location.pathname === '/'
-  const currentRoute = location.pathname as CortexRoute
+  const currentRoute = normalizeLegacyRoute(location.pathname) as CortexRoute
+  const isOverview = currentRoute === '/cortex' || currentRoute === '/business'
+  const statusChips =
+    uiMode === 'business'
+      ? [
+          {
+            label: 'Open Relationships',
+            value: businessSnapshot?.relationships.length ?? 0,
+          },
+          {
+            label: 'Queued Actions',
+            value: businessSnapshot?.queue.filter((item) => item.status !== 'ready').length ?? 0,
+          },
+          {
+            label: 'Active Sections',
+            value: businessSnapshot?.sections.length ?? 0,
+          },
+        ]
+      : [
+          {
+            label: 'Approvals Needed',
+            value: snapshot?.approvals.filter((approval) => approval.state === 'pending').length ?? 0,
+          },
+          {
+            label: 'Blocked Missions',
+            value: snapshot?.missions.filter((mission) => mission.status === 'blocked').length ?? 0,
+          },
+          {
+            label: 'Live Drops',
+            value: snapshot?.drops.filter((drop) => drop.status === 'live').length ?? 0,
+          },
+        ]
 
   useEffect(() => {
     const pageMeta = getPageMeta(uiMode, currentRoute)
@@ -51,20 +88,20 @@ export const AppLayout = () => {
       route: currentRoute,
       routeTitle: pageMeta.title,
       routeSubtitle: pageMeta.subtitle,
-      uiMode,
+      workspace: uiMode,
       details: {},
     })
   }, [currentRoute, setViewContext, uiMode])
 
   useEffect(() => {
-    locationPathRef.current = location.pathname
-  }, [location.pathname])
+    syncUiRoute(currentRoute)
+  }, [currentRoute, syncUiRoute])
 
   useEffect(() => {
-    if (uiFocus.route && uiFocus.route !== locationPathRef.current) {
+    if (uiFocus.revision > 0 && uiFocus.route && uiFocus.route !== currentRoute) {
       navigate(uiFocus.route)
     }
-  }, [navigate, uiFocus.revision, uiFocus.route])
+  }, [currentRoute, navigate, uiFocus.revision, uiFocus.route])
 
   useEffect(() => {
     return () => {
@@ -100,6 +137,7 @@ export const AppLayout = () => {
     <div
       className="app-shell"
       data-mode={uiMode}
+      data-route={currentRoute}
       data-background-scope={isOverview ? 'overview' : 'page'}
       data-active-scene={isOverview ? 'overview' : 'route'}
     >
@@ -126,18 +164,16 @@ export const AppLayout = () => {
 
         <header className="top-bar">
           <div className="top-bar-left">
-            <span className="brand-mark">The Cortex</span>
+            <span className="brand-mark">{uiMode === 'business' ? 'Business OS' : 'The Cortex'}</span>
           </div>
 
           <div className="top-bar-status">
-            <div className="status-chip status-chip-empty" aria-label="Active Priorities pending agent updates">
-              <span>Active Priorities</span>
-              <span className="status-chip-indicator" aria-hidden="true" />
-            </div>
-            <div className="status-chip status-chip-empty" aria-label="Urgent Items pending agent updates">
-              <span>Urgent Items</span>
-              <span className="status-chip-indicator" aria-hidden="true" />
-            </div>
+            {statusChips.map((chip) => (
+              <div key={chip.label} className="status-chip" aria-label={`${chip.value} ${chip.label.toLowerCase()}`}>
+                <span>{chip.label}</span>
+                <strong className="status-chip-value">{chip.value}</strong>
+              </div>
+            ))}
             <div className="realtime-mode-strip" role="radiogroup" aria-label="Realtime mode">
               {getVisibleRealtimeModes().map((mode) => {
                 const profile = getRealtimeModeProfile(mode)
@@ -167,7 +203,7 @@ export const AppLayout = () => {
               type="button"
               className={`mode-slider${uiMode === 'business' ? ' is-active' : ''}`}
               onClick={toggleUiMode}
-              aria-label="Toggle theme mode"
+              aria-label="Toggle workspace context"
               aria-pressed={uiMode === 'business'}
             >
               <span className="mode-slider-track" aria-hidden="true">
@@ -183,7 +219,7 @@ export const AppLayout = () => {
         >
           <AnimatePresence mode="wait">
             <motion.main
-              key={location.pathname}
+              key={`${uiMode}:${location.pathname}`}
               className={`page-shell${isOverview ? ' page-shell-overview' : ''}`}
               initial={isOverview ? { opacity: 0 } : { opacity: 0, y: 20 }}
               animate={isOverview ? { opacity: 1 } : { opacity: 1, y: 0 }}
@@ -202,7 +238,7 @@ export const AppLayout = () => {
             <NavLink
               key={item.path}
               to={item.path}
-              end={item.path === '/'}
+              end={item.path === getWorkspaceHomeRoute(uiMode)}
               className={({ isActive }) => `dock-item${isActive ? ' is-active' : ''}`}
               aria-label={item.label}
               onClick={() => navigateUi(item.path as CortexRoute)}

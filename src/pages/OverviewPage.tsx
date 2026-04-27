@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
-import { CoreMind } from '@/components/CoreMind'
+import { NeurobrainVoiceControl } from '@/components/NeurobrainVoiceControl'
 import { OverviewUsageRings } from '@/components/OverviewUsageRings'
 import { useCortex } from '@/hooks/useCortex'
+import { DEFAULT_GATEWAY_STATE } from '@/shared/cortex'
 
 export const OverviewPage = () => {
   const { realtime, setViewContext, snapshot, toggleRealtimeVoice, uiMode } = useCortex()
@@ -11,16 +12,24 @@ export const OverviewPage = () => {
       return
     }
 
+    const gateway = snapshot.gateway ?? DEFAULT_GATEWAY_STATE
+
     setViewContext({
       details: {
-        neuralLoad: snapshot.system.neuralLoad,
-        signalCoherence: snapshot.system.signalCoherence,
-        activeNodes: snapshot.system.activeNodes,
+        missionCount: snapshot.missions.length,
+        blockedMissions: snapshot.missions.filter((mission) => mission.status === 'blocked').length,
+        activeAgents: snapshot.agentLanes.filter((lane) => lane.status === 'active').length,
+        approvalsNeeded: snapshot.approvals.filter((approval) => approval.state === 'pending').length,
+        liveDrops: snapshot.drops.filter((drop) => drop.status === 'live').length,
+        gatewayStatus: gateway.status,
+        gatewayProcessName: gateway.processName,
       },
     })
   }, [
     setViewContext,
     snapshot,
+    snapshot?.gateway?.processName,
+    snapshot?.gateway?.status,
     snapshot?.system.activeNodes,
     snapshot?.system.neuralLoad,
     snapshot?.system.signalCoherence,
@@ -30,11 +39,15 @@ export const OverviewPage = () => {
     return null
   }
 
+  const gateway = snapshot.gateway ?? DEFAULT_GATEWAY_STATE
+
   return (
     <div className="overview-brain-only">
-      <div className="overview-hud">
-        <OverviewUsageRings uiMode={uiMode} />
-        <CoreMind
+      <div className="overview-top-layer">
+        <OverviewUsageRings uiMode={uiMode} snapshot={snapshot} gateway={gateway} />
+      </div>
+      <div className="overview-center-stage">
+        <NeurobrainVoiceControl
           onToggle={toggleRealtimeVoice}
           realtimeState={realtime}
           uiMode={uiMode}

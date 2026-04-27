@@ -95,6 +95,9 @@ const getApiKey = () => {
   return apiKey
 }
 
+const getOpenAIAuthHint = (status: number) =>
+  status === 401 ? ' Check OPENAI_API_KEY; OpenAI rejected the key as invalid or expired.' : ''
+
 const getElevenLabsApiKey = () => process.env.ELEVENLABS_API_KEY?.trim() ?? null
 const getElevenLabsTranscriptionLanguage = () =>
   process.env.ELEVENLABS_STT_LANGUAGE?.trim() || 'en'
@@ -463,7 +466,7 @@ const transcribeAudioWithOpenAI = async (
     throw new Error(
       `OpenAI transcription failed (${response.status}): ${
         JSON.stringify(data) || response.statusText
-      }`,
+      }${getOpenAIAuthHint(response.status)}`,
     )
   }
 
@@ -778,7 +781,7 @@ export const createToolVoiceResponse = async (
     throw new Error(
       `OpenAI tool voice response failed (${response.status}): ${
         JSON.stringify(data) || response.statusText
-      }`,
+      }${getOpenAIAuthHint(response.status)}`,
     )
   }
 
@@ -944,7 +947,7 @@ const synthesizeSpeechWithOpenAI = async (
       },
     )
     throw new Error(
-      `OpenAI speech synthesis failed (${response.status}): ${await readErrorBody(response)}`,
+      `OpenAI speech synthesis failed (${response.status}): ${await readErrorBody(response)}${getOpenAIAuthHint(response.status)}`,
     )
   }
 

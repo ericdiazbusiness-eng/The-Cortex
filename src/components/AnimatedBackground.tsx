@@ -18,17 +18,17 @@ interface CircuitPath {
 }
 
 const PALETTES: Record<UiMode, Array<{ r: number; g: number; b: number }>> = {
-  scavenjer: [
+  cortex: [
     { r: 103, g: 244, b: 255 },
     { r: 221, g: 111, b: 255 },
     { r: 139, g: 255, b: 138 },
     { r: 255, g: 200, b: 111 },
   ],
   business: [
-    { r: 20, g: 24, b: 29 },
-    { r: 64, g: 72, b: 82 },
-    { r: 255, g: 255, b: 255 },
-    { r: 210, g: 214, b: 219 },
+    { r: 17, g: 17, b: 17 },
+    { r: 17, g: 17, b: 17 },
+    { r: 36, g: 36, b: 36 },
+    { r: 0, g: 0, b: 0 },
   ],
 }
 
@@ -61,9 +61,13 @@ function createCircuitPaths(w: number, h: number, mode: UiMode): CircuitPath[] {
     }
 
     const isBright = Math.random() > 0.8
-    const opacity = isBright
-      ? 0.12 + Math.random() * 0.06
-      : 0.04 + Math.random() * 0.04
+    const opacity = mode === 'business'
+      ? isBright
+        ? 0.18 + Math.random() * 0.1
+        : 0.08 + Math.random() * 0.08
+      : isBright
+        ? 0.12 + Math.random() * 0.06
+        : 0.04 + Math.random() * 0.04
 
     paths.push({
       points,

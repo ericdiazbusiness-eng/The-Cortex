@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <rect width="640" height="360" rx="28" fill="#070d1a" />
+  <rect x="48" y="76" width="164" height="64" rx="16" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+  <rect x="238" y="76" width="164" height="64" rx="16" fill="#372118" stroke="#ffc86f" stroke-width="3" />
+  <rect x="428" y="76" width="164" height="64" rx="16" fill="#27173d" stroke="#dd6fff" stroke-width="3" />
+  <rect x="238" y="220" width="164" height="64" rx="16" fill="#182929" stroke="#8bff8a" stroke-width="3" />
+  <text x="130" y="114" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Cron Audit</text>
+  <text x="320" y="114" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Spend Diff</text>
+  <text x="510" y="114" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Approval Packet</text>
+  <text x="320" y="258" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Operations Feed</text>
+  <path d="M212 108h26" stroke="#67f4ff" stroke-width="4" stroke-linecap="round" />
+  <path d="M402 108h26" stroke="#ffc86f" stroke-width="4" stroke-linecap="round" />
+  <path d="M320 140v80" stroke="#8bff8a" stroke-width="4" stroke-linecap="round" />
+  <circle cx="238" cy="108" r="6" fill="#67f4ff" />
+  <circle cx="428" cy="108" r="6" fill="#ffc86f" />
+  <circle cx="320" cy="220" r="6" fill="#8bff8a" />
+</svg>

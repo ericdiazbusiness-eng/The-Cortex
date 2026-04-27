@@ -6,16 +6,44 @@ import {
 import {
   DEFAULT_FALLBACK_DATA,
   type CortexBridge,
+  type CortexDashboardSnapshot,
   type CortexRealtimeState,
   type CortexViewContext,
+  type WorkspaceSnapshot,
 } from '@/shared/cortex'
 
+const wrapWorkspaceSnapshot = (
+  snapshot: CortexDashboardSnapshot = DEFAULT_FALLBACK_DATA,
+): WorkspaceSnapshot => ({
+  workspace: 'cortex',
+  dashboard: snapshot,
+})
+
 const createBridgeStub = (overrides: Partial<CortexBridge> = {}): CortexBridge => ({
+  getWorkspaceSnapshot: vi.fn().mockResolvedValue(wrapWorkspaceSnapshot()),
   getDashboardSnapshot: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA),
-  listAgents: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.agents),
-  listMemories: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.memories),
-  listSchedules: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.jobs),
-  listLogs: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.logs),
+  listAgents: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.agentLanes),
+  listMemories: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.vaultEntries),
+  listWorkflows: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.workflows),
+  listSchedules: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.drops),
+  listLogs: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.auditEvents),
+  createWorkflow: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.workflows[0]),
+  updateWorkflow: vi.fn().mockResolvedValue(DEFAULT_FALLBACK_DATA.workflows[0]),
+  deleteWorkflow: vi.fn().mockResolvedValue(undefined),
+  downloadWorkflowAsset: vi.fn().mockResolvedValue({
+    ok: true,
+    canceled: false,
+    filePath: 'C:\\Downloads\\workflow-asset',
+  }),
+  runWorkspaceCommand: vi.fn().mockResolvedValue({
+    commandId: 'run-ops-sync',
+    ok: true,
+    exitCode: 0,
+    stdout: 'ok',
+    stderr: '',
+    ranAt: new Date().toISOString(),
+    durationMs: 80,
+  }),
   runCommand: vi.fn().mockResolvedValue({
     commandId: 'run-ops-sync',
     ok: true,
@@ -146,10 +174,10 @@ class MockRealtimeTranscriptionSocket {
 }
 
 const TEST_VIEW_CONTEXT: CortexViewContext = {
-  route: '/',
+  route: '/cortex',
   routeTitle: 'Overview',
-  routeSubtitle: 'Scavenjer command presence',
-  uiMode: 'scavenjer',
+  routeSubtitle: 'Cortex command presence',
+  workspace: 'cortex',
   details: {
     neuralLoad: 74,
   },
@@ -170,7 +198,7 @@ const createController = (
     {
       api: bridge,
       getSessionRequest: () =>
-        buildRealtimeSessionRequest(DEFAULT_FALLBACK_DATA, TEST_VIEW_CONTEXT, mode),
+        buildRealtimeSessionRequest(wrapWorkspaceSnapshot(), TEST_VIEW_CONTEXT, mode),
       onStateChange: (state) => {
         states.push(state)
       },
@@ -204,27 +232,27 @@ describe('CortexRealtimeController', () => {
 
   it('maps each realtime mode to the shared voice pipeline presets', () => {
     const premiumRequest = buildRealtimeSessionRequest(
-      DEFAULT_FALLBACK_DATA,
+      wrapWorkspaceSnapshot(),
       TEST_VIEW_CONTEXT,
       'premium_voice',
     )
     const leanRequest = buildRealtimeSessionRequest(
-      DEFAULT_FALLBACK_DATA,
+      wrapWorkspaceSnapshot(),
       TEST_VIEW_CONTEXT,
       'lean_voice',
     )
     const neuralRequest = buildRealtimeSessionRequest(
-      DEFAULT_FALLBACK_DATA,
+      wrapWorkspaceSnapshot(),
       TEST_VIEW_CONTEXT,
       'neural_voice',
     )
     const toolRequest = buildRealtimeSessionRequest(
-      DEFAULT_FALLBACK_DATA,
+      wrapWorkspaceSnapshot(),
       TEST_VIEW_CONTEXT,
       'tool_voice',
     )
     const directorRequest = buildRealtimeSessionRequest(
-      DEFAULT_FALLBACK_DATA,
+      wrapWorkspaceSnapshot(),
       TEST_VIEW_CONTEXT,
       'ui_director',
     )
@@ -270,6 +298,24 @@ describe('CortexRealtimeController', () => {
       navigationPolicy: 'ask_then_move',
       toolPreference: 'ui_first',
     })
+  })
+
+  it('includes workflow read and focus tools in the session definition', () => {
+    const request = buildRealtimeSessionRequest(
+      wrapWorkspaceSnapshot(),
+      {
+        route: '/cortex/workflows',
+        routeTitle: 'Workflows',
+        routeSubtitle: 'Automation registry',
+        workspace: 'cortex',
+        details: {},
+      },
+      'ui_director',
+    )
+
+    expect(request.tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining(['list_workflows', 'focus_workflow']),
+    )
   })
 
   it('starts and stops the shared voice pipeline without using realtime WebRTC bootstrap', async () => {
@@ -489,7 +535,7 @@ describe('CortexRealtimeController', () => {
   it('routes tool calls through the same turn and feeds the results back into the follow-up response', async () => {
     const onToolCall = vi.fn().mockResolvedValue({
       ok: true,
-      route: '/system',
+      route: '/cortex/economy',
     })
     const bridge = createBridgeStub({
       transcribeAudio: vi.fn().mockResolvedValue('Show me throughput.'),
@@ -526,7 +572,7 @@ describe('CortexRealtimeController', () => {
       {
         api: bridge,
         getSessionRequest: () =>
-          buildRealtimeSessionRequest(DEFAULT_FALLBACK_DATA, TEST_VIEW_CONTEXT, 'tool_voice'),
+          buildRealtimeSessionRequest(wrapWorkspaceSnapshot(), TEST_VIEW_CONTEXT, 'tool_voice'),
         onStateChange: (state) => {
           states.push(state)
         },

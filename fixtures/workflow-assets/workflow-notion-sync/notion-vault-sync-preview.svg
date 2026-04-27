@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <rect width="640" height="360" rx="28" fill="#070d1a" />
+  <rect x="44" y="68" width="148" height="70" rx="16" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+  <rect x="246" y="68" width="148" height="70" rx="16" fill="#182929" stroke="#8bff8a" stroke-width="3" />
+  <rect x="448" y="68" width="148" height="70" rx="16" fill="#27173d" stroke="#dd6fff" stroke-width="3" />
+  <rect x="246" y="224" width="148" height="70" rx="16" fill="#372118" stroke="#ffc86f" stroke-width="3" />
+  <text x="118" y="108" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Cron Trigger</text>
+  <text x="320" y="108" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Normalizer</text>
+  <text x="522" y="108" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Notion Sync</text>
+  <text x="320" y="264" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Vault Update</text>
+  <path d="M192 103h54" stroke="#67f4ff" stroke-width="4" stroke-linecap="round" />
+  <path d="M394 103h54" stroke="#8bff8a" stroke-width="4" stroke-linecap="round" />
+  <path d="M320 138v82" stroke="#ffc86f" stroke-width="4" stroke-linecap="round" />
+  <circle cx="246" cy="103" r="6" fill="#67f4ff" />
+  <circle cx="448" cy="103" r="6" fill="#8bff8a" />
+  <circle cx="320" cy="220" r="6" fill="#ffc86f" />
+</svg>

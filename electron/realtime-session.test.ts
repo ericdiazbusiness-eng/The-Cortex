@@ -33,10 +33,10 @@ const TEST_REQUEST: CortexRealtimeSessionRequest = {
   toolPreference: 'read_first',
   preferredToolGroups: ['read', 'ui_action', 'execution'],
   context: {
-    route: '/',
+    route: '/cortex',
     routeTitle: 'Overview',
-    routeSubtitle: 'Scavenjer command presence',
-    uiMode: 'scavenjer',
+    routeSubtitle: 'Cortex command presence',
+    workspace: 'cortex',
     details: {
       neuralLoad: 74,
     },

@@ -1,477 +1,347 @@
-import { act, useEffect } from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { HashRouter, Route, Routes } from 'react-router-dom'
 import App from './App'
-import { AppLayout } from '@/components/AppLayout'
-import { CortexProvider } from '@/context/CortexContext'
-import { useCortex } from '@/hooks/useCortex'
-import { AgentsPage } from '@/pages/AgentsPage'
-import { OverviewPage } from '@/pages/OverviewPage'
+import { UI_MODE_STORAGE_KEY, WORKSPACE_CONTEXT_STORAGE_KEY } from '@/lib/ui-mode'
 import {
-  DEFAULT_FALLBACK_DATA,
+  DEFAULT_BUSINESS_FALLBACK_DATA,
   REALTIME_MODE_STORAGE_KEY,
+  DEFAULT_FALLBACK_DATA,
   type CortexBridge,
-  type CortexRealtimeDebugEntry,
+  type CortexDashboardSnapshot,
+  type WorkspaceSnapshot,
 } from '@/shared/cortex'
-import { getModeContent, UI_MODE_STORAGE_KEY } from '@/lib/ui-mode'
 
 const clone = <T,>(value: T) => JSON.parse(JSON.stringify(value)) as T
+
 const clearStoredMode = () => {
   window.localStorage?.removeItem?.(UI_MODE_STORAGE_KEY)
+  window.localStorage?.removeItem?.(WORKSPACE_CONTEXT_STORAGE_KEY)
   window.localStorage?.removeItem?.(REALTIME_MODE_STORAGE_KEY)
 }
 
-const FocusMarketingAgentDriver = () => {
-  const { focusUi } = useCortex()
-
-  useEffect(() => {
-    focusUi({
-      route: '/agents',
-      agentId: 'zib001',
-    })
-  }, [focusUi])
-
-  return null
-}
-
-const RealtimeNavigationProbe = () => {
-  const { realtimeMode } = useCortex()
-
-  return (
-    <div>
-      <span>{realtimeMode}</span>
-    </div>
+const createApiStub = (
+  initialSnapshot?: CortexDashboardSnapshot,
+): CortexBridge => {
+  let snapshot = clone(
+    initialSnapshot ?? {
+      ...DEFAULT_FALLBACK_DATA,
+      gateway: {
+        status: 'on' as const,
+        processName: 'hermes',
+        lastCheckedAt: new Date().toISOString(),
+      },
+    },
   )
-}
 
-const RealtimeNavigationDriver = () => {
-  const { focusUi, setRealtimeMode } = useCortex()
+  const getWorkspaceSnapshot = async (
+    workspace: 'cortex' | 'business',
+  ): Promise<WorkspaceSnapshot> =>
+    workspace === 'business'
+      ? {
+          workspace,
+          dashboard: clone(DEFAULT_BUSINESS_FALLBACK_DATA),
+        }
+      : {
+          workspace,
+          dashboard: clone(snapshot),
+        }
 
-  useEffect(() => {
-    setRealtimeMode('neural_voice')
-    focusUi({
-      route: '/agents',
-    })
-  }, [focusUi, setRealtimeMode])
+  return {
+  getWorkspaceSnapshot: vi.fn().mockImplementation(getWorkspaceSnapshot),
+  getDashboardSnapshot: vi.fn().mockImplementation(async () => clone(snapshot)),
+  listAgents: vi.fn().mockImplementation(async () => clone(snapshot.agentLanes)),
+  listMemories: vi.fn().mockImplementation(async () => clone(snapshot.vaultEntries)),
+  listWorkflows: vi.fn().mockImplementation(async () => clone(snapshot.workflows)),
+  listSchedules: vi.fn().mockImplementation(async () => clone(snapshot.drops)),
+  listLogs: vi.fn().mockImplementation(async () => clone(snapshot.auditEvents)),
+  createWorkflow: vi.fn().mockImplementation(async (payload) => {
+    const workflowId = `workflow-${Date.now()}`
+    const workflow = {
+      id: workflowId,
+      title: payload.title,
+      description: payload.description,
+      toolsUsed: payload.toolsUsed,
+      architecture: payload.architecture,
+      diagramSource: {
+        path: `fixtures/workflow-assets/${workflowId}/${payload.diagramSource.fileName}`,
+        fileName: payload.diagramSource.fileName,
+        mimeType: payload.diagramSource.mimeType,
+        sizeBytes: payload.diagramSource.dataBase64.length,
+        uploadedAt: new Date().toISOString(),
+      },
+      diagramPreview: {
+        path: `fixtures/workflow-assets/${workflowId}/${payload.diagramPreview.fileName}`,
+        fileName: payload.diagramPreview.fileName,
+        mimeType: payload.diagramPreview.mimeType,
+        sizeBytes: payload.diagramPreview.dataBase64.length,
+        uploadedAt: new Date().toISOString(),
+        previewUrl: `data:${payload.diagramPreview.mimeType};base64,${payload.diagramPreview.dataBase64}`,
+      },
+      zipAsset: payload.zipAsset
+        ? {
+            path: `fixtures/workflow-assets/${workflowId}/${payload.zipAsset.fileName}`,
+            fileName: payload.zipAsset.fileName,
+            mimeType: payload.zipAsset.mimeType,
+            sizeBytes: payload.zipAsset.dataBase64.length,
+            uploadedAt: new Date().toISOString(),
+          }
+        : null,
+      updatedAt: new Date().toISOString(),
+      accent: 'cyan' as const,
+    }
 
-  return null
-}
+    snapshot = {
+      ...snapshot,
+      workflows: [workflow, ...snapshot.workflows],
+    }
 
-const UiModeProbe = () => {
-  const { toggleUiMode, uiMode } = useCortex()
-  const content = getModeContent(uiMode)
+    return clone(workflow)
+  }),
+  updateWorkflow: vi.fn().mockImplementation(async (payload) => {
+    const current = snapshot.workflows.find((workflow) => workflow.id === payload.id)
+    if (!current) {
+      throw new Error('Unknown workflow')
+    }
 
-  return (
-    <div>
-      <button type="button" onClick={toggleUiMode}>
-        Toggle theme mode
-      </button>
-      <span>{uiMode}</span>
-      {content.nav.map((item) => (
-        <span key={item.path}>{item.label}</span>
-      ))}
-    </div>
-  )
+    const updated = {
+      ...current,
+      title: payload.title,
+      description: payload.description,
+      toolsUsed: payload.toolsUsed,
+      architecture: payload.architecture,
+      diagramSource:
+        payload.diagramSource.mode === 'replace'
+          ? {
+              path: `fixtures/workflow-assets/${current.id}/${payload.diagramSource.fileName}`,
+              fileName: payload.diagramSource.fileName,
+              mimeType: payload.diagramSource.mimeType,
+              sizeBytes: payload.diagramSource.dataBase64.length,
+              uploadedAt: new Date().toISOString(),
+            }
+          : current.diagramSource,
+      diagramPreview:
+        payload.diagramPreview.mode === 'replace'
+          ? {
+              path: `fixtures/workflow-assets/${current.id}/${payload.diagramPreview.fileName}`,
+              fileName: payload.diagramPreview.fileName,
+              mimeType: payload.diagramPreview.mimeType,
+              sizeBytes: payload.diagramPreview.dataBase64.length,
+              uploadedAt: new Date().toISOString(),
+              previewUrl: `data:${payload.diagramPreview.mimeType};base64,${payload.diagramPreview.dataBase64}`,
+            }
+          : current.diagramPreview,
+      zipAsset:
+        payload.zipAsset.mode === 'replace'
+          ? {
+              path: `fixtures/workflow-assets/${current.id}/${payload.zipAsset.fileName}`,
+              fileName: payload.zipAsset.fileName,
+              mimeType: payload.zipAsset.mimeType,
+              sizeBytes: payload.zipAsset.dataBase64.length,
+              uploadedAt: new Date().toISOString(),
+            }
+          : payload.zipAsset.mode === 'remove'
+            ? null
+            : current.zipAsset ?? null,
+      updatedAt: new Date().toISOString(),
+    }
+
+    snapshot = {
+      ...snapshot,
+      workflows: snapshot.workflows.map((workflow) =>
+        workflow.id === current.id ? updated : workflow,
+      ),
+    }
+
+    return clone(updated)
+  }),
+  deleteWorkflow: vi.fn().mockImplementation(async (workflowId: string) => {
+    snapshot = {
+      ...snapshot,
+      workflows: snapshot.workflows.filter((workflow) => workflow.id !== workflowId),
+    }
+  }),
+  downloadWorkflowAsset: vi.fn().mockResolvedValue({
+    ok: true,
+    canceled: false,
+    filePath: 'C:\\Downloads\\workflow-asset',
+  }),
+  runWorkspaceCommand: vi.fn().mockImplementation(async (_workspace, commandId, context) => ({
+    commandId,
+    ok: true,
+    exitCode: 0,
+    stdout: `Workspace command ${commandId} executed.`,
+    stderr: '',
+    ranAt: new Date().toISOString(),
+    durationMs: 80,
+    context,
+  })),
+  runCommand: vi.fn().mockResolvedValue({
+    commandId: 'sync-mission-board',
+    ok: true,
+    exitCode: 0,
+    stdout: 'Mission board synced.',
+    stderr: '',
+    ranAt: new Date().toISOString(),
+    durationMs: 80,
+  }),
+  createRealtimeCall: vi.fn().mockRejectedValue(new Error('unused in tests')),
+  transcribeAudio: vi.fn().mockResolvedValue(''),
+  createRealtimeTranscriptionToken: vi.fn().mockResolvedValue({
+    token: 'token-1',
+    expiresAt: null,
+  }),
+  createToolVoiceResponse: vi.fn().mockResolvedValue({
+    id: 'response-1',
+    outputText: '',
+    output: [],
+  }),
+  synthesizeSpeech: vi.fn().mockResolvedValue({
+    audioBase64: '',
+    mimeType: 'audio/mpeg',
+  }),
+  abortVoiceTurn: vi.fn().mockResolvedValue({
+    ok: true,
+    aborted: false,
+    abortedStages: [],
+    reason: 'none',
+  }),
+  recordRealtimeLog: vi.fn().mockResolvedValue(undefined),
+  getRealtimeDebugEntries: vi.fn().mockResolvedValue([]),
+  recordRealtimeDebug: vi.fn().mockResolvedValue(undefined),
+  subscribeToEvents: vi.fn().mockImplementation(() => () => {}),
+  subscribeToRealtimeDebug: vi.fn().mockImplementation(() => () => {}),
+  }
 }
 
 describe('The Cortex app', () => {
   beforeEach(() => {
     clearStoredMode()
     window.location.hash = '#/'
-
-    const api: CortexBridge = {
-      getDashboardSnapshot: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA)),
-      listAgents: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.agents)),
-      listMemories: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.memories)),
-      listSchedules: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.jobs)),
-      listLogs: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.logs)),
-      runCommand: vi.fn().mockResolvedValue({
-        commandId: 'run-ops-sync',
-        ok: true,
-        exitCode: 0,
-        stdout: 'Ops sync completed.',
-        stderr: '',
-        ranAt: new Date().toISOString(),
-        durationMs: 120,
-      }),
-      createRealtimeCall: vi.fn().mockRejectedValue(
-        new Error('Realtime voice is not configured in this test.'),
-      ),
-      transcribeAudio: vi.fn().mockResolvedValue(''),
-      createRealtimeTranscriptionToken: vi.fn().mockResolvedValue({
-        token: 'token-1',
-        expiresAt: null,
-      }),
-      createToolVoiceResponse: vi.fn().mockResolvedValue({
-        id: 'response-1',
-        outputText: '',
-        output: [],
-      }),
-      synthesizeSpeech: vi.fn().mockResolvedValue({
-        audioBase64: '',
-        mimeType: 'audio/mpeg',
-      }),
-      abortVoiceTurn: vi.fn().mockResolvedValue({
-        ok: true,
-        aborted: false,
-        abortedStages: [],
-        reason: 'none',
-      }),
-      recordRealtimeLog: vi.fn().mockResolvedValue(undefined),
-      getRealtimeDebugEntries: vi.fn().mockResolvedValue([]),
-      recordRealtimeDebug: vi.fn().mockResolvedValue(undefined),
-      subscribeToEvents: vi.fn().mockImplementation(() => () => {}),
-      subscribeToRealtimeDebug: vi.fn().mockImplementation(() => () => {}),
-    }
-
-    window.cortexApi = api
+    window.cortexApi = createApiStub()
   })
 
   afterEach(() => {
-    vi.useRealTimers()
-    vi.unstubAllEnvs()
     delete window.cortexApi
     clearStoredMode()
     window.location.hash = '#/'
   })
 
-  it('renders the default scavenjer shell and navigates to ops memory', async () => {
-    const user = userEvent.setup()
+  it('renders the overview with mission metrics, gateway status, and the 9-item dock', async () => {
     render(<App />)
 
     expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
     expect(screen.getByText('The Cortex')).toBeInTheDocument()
-    expect(screen.getByText('Active Priorities')).toBeInTheDocument()
-    expect(screen.getByText('Urgent Items')).toBeInTheDocument()
-    expect(screen.getByText('Overview')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /usage$/i })).toHaveLength(1)
-    expect(screen.getByRole('button', { name: /elevenlabs/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /openai/i })).toBeInTheDocument()
-    expect(screen.queryByText('ElevenLabs')).not.toBeInTheDocument()
-    expect(screen.queryByText('OpenAI')).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /marketing/i })).not.toBeInTheDocument()
-    expect(screen.queryByText('Sentient Mind')).not.toBeInTheDocument()
-    expect(screen.queryByText('Dark mode operations')).not.toBeInTheDocument()
+    expect(screen.getByText('Approvals Needed')).toBeInTheDocument()
+    expect(screen.getByText('Blocked Missions')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: /cortex profile gateway live/i })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('link', { name: /Ops Memory/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Central memory stream')).toBeInTheDocument()
-      expect(screen.getByText('Ops Memory')).toBeInTheDocument()
-    })
-  })
-
-  it('switches to business mode, persists it, and updates labels on the same routes', async () => {
-    render(
-      <CortexProvider>
-        <UiModeProbe />
-      </CortexProvider>,
-    )
-
-    expect(screen.getByText('scavenjer')).toBeInTheDocument()
-    expect(screen.getByText('Ops Memory')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: /toggle theme mode/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText('business')).toBeInTheDocument()
-    })
-
-    expect(window.localStorage?.getItem?.(UI_MODE_STORAGE_KEY)).toBe('business')
-    expect(screen.getByText('Decisions')).toBeInTheDocument()
-    expect(screen.getByText('ZiBz')).toBeInTheDocument()
-    expect(screen.queryByText('Growth')).not.toBeInTheDocument()
-  })
-
-  it('keeps the ZiBz page minimal when only fixture data is available', async () => {
-    const firstView = render(
-      <CortexProvider>
-        <AgentsPage />
-      </CortexProvider>,
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('ZiBz operations channel')).toBeInTheDocument()
-      expect(screen.getByText('Awaiting live ZiBz activity')).toBeInTheDocument()
-      expect(screen.queryByText('Outreach queue')).not.toBeInTheDocument()
-    })
-
-    firstView.unmount()
-
-    render(
-      <CortexProvider>
-        <FocusMarketingAgentDriver />
-        <AgentsPage />
-      </CortexProvider>,
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('Awaiting live ZiBz activity')).toBeInTheDocument()
-      expect(screen.queryByText('Outreach queue')).not.toBeInTheDocument()
-    })
-  })
-
-  it('returns the overview neural surface after page navigation', async () => {
-    const user = userEvent.setup()
-    render(<App />)
-
-    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
-
-    await user.click(screen.getByRole('link', { name: /Ops Memory/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Central memory stream')).toBeInTheDocument()
-    })
-
-    await user.click(screen.getByRole('link', { name: /Overview/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Hello Zaidek')).toBeInTheDocument()
-    })
-  })
-
-  it('reveals provider labels only on hover for the overview side rings', async () => {
-    const user = userEvent.setup()
-    render(<App />)
-
-    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
-    expect(screen.queryByText('ElevenLabs')).not.toBeInTheDocument()
-
-    await user.hover(screen.getByRole('button', { name: /elevenlabs/i }))
-
-    expect(screen.getByText('ElevenLabs')).toBeInTheDocument()
-    expect(screen.getByText('Voice identity')).toBeInTheDocument()
-
-    await user.unhover(screen.getByRole('button', { name: /elevenlabs/i }))
-
-    await waitFor(() => {
-      expect(screen.queryByText('ElevenLabs')).not.toBeInTheDocument()
-    })
-  })
-
-  it('keeps exactly one realtime mode toggle active and persists the selected mode', async () => {
-    const user = userEvent.setup()
-    render(<App />)
-
-    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
-
-    const radios = screen.getAllByRole('radio')
-    expect(radios).toHaveLength(4)
-    expect(screen.queryByText('Premium voice mode')).not.toBeInTheDocument()
-
-    const premium = screen.getByRole('radio', { name: /premium voice mode/i })
-    const neural = screen.getByRole('radio', { name: /neural voice mode/i })
-    const lean = screen.getByRole('radio', { name: /lean voice mode/i })
-    const director = screen.getByRole('radio', { name: /ui director mode/i })
-
-    expect(premium).toHaveAttribute('aria-checked', 'true')
-    expect(neural).toHaveAttribute('aria-checked', 'false')
-    expect(lean).toHaveAttribute('aria-checked', 'false')
-    expect(director).toHaveAttribute('aria-checked', 'false')
-
-    await user.click(neural)
-
-    expect(premium).toHaveAttribute('aria-checked', 'false')
-    expect(neural).toHaveAttribute('aria-checked', 'true')
-    expect(lean).toHaveAttribute('aria-checked', 'false')
-    expect(director).toHaveAttribute('aria-checked', 'false')
-    expect(window.localStorage?.getItem?.(REALTIME_MODE_STORAGE_KEY)).toBe('neural_voice')
-  })
-
-  it('migrates the stored VECTOR profile into ECO in the default three-mode set', async () => {
-    const user = userEvent.setup()
-    window.localStorage?.setItem?.(REALTIME_MODE_STORAGE_KEY, 'tool_voice')
-
-    render(<App />)
-
-    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
-    const lean = screen.getByRole('radio', { name: /lean voice mode/i })
-
-    expect(lean).toHaveAttribute('aria-checked', 'true')
-    expect(window.localStorage?.getItem?.(REALTIME_MODE_STORAGE_KEY)).toBe('lean_voice')
-
-    await user.click(screen.getByRole('radio', { name: /ui director mode/i }))
-    expect(window.localStorage?.getItem?.(REALTIME_MODE_STORAGE_KEY)).toBe('ui_director')
-  })
-
-  it('can restore the legacy four-profile strip with the internal profile-set flag', async () => {
-    vi.stubEnv('VITE_CORTEX_PROFILE_SET', 'legacy_four_mode')
-
-    render(<App />)
-
-    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
-    expect(screen.getAllByRole('radio')).toHaveLength(5)
-    expect(screen.getByRole('radio', { name: /tool voice mode/i })).toBeInTheDocument()
-  })
-
-  it('keeps the overview surface clean when NEURAL is selected', async () => {
-    const user = userEvent.setup()
-    render(<App />)
-
-    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
-
-    await user.click(screen.getByRole('radio', { name: /neural voice mode/i }))
-
-    expect(screen.getByText('Hello Zaidek')).toBeInTheDocument()
-    expect(screen.queryByText(/suggested voice stack/i)).not.toBeInTheDocument()
-    expect(
-      screen.queryByText(/NEURAL pairs ElevenLabs identity with a cheaper OpenAI brain/i),
-    ).not.toBeInTheDocument()
-  })
-
-  it('briefly flashes a one-word mode indicator when a realtime mode is chosen', async () => {
-    const user = userEvent.setup()
-    render(<App />)
-
-    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
-    expect(screen.queryByText('ECO')).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole('radio', { name: /ui director mode/i }))
-
-    expect(screen.getByText('GUIDE')).toBeInTheDocument()
-  })
-
-  it('lets mode selection stay responsive in browser fallback mode', async () => {
-    const user = userEvent.setup()
-    delete window.cortexApi
-
-    render(<App />)
-
-    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
-
-    await user.click(screen.getByRole('radio', { name: /lean voice mode/i }))
-
-    expect(screen.getByRole('radio', { name: /lean voice mode/i })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    )
-    expect(screen.getByText('ECO')).toBeInTheDocument()
-  })
-
-  it('mounts the animated canvas only on the overview route', async () => {
-    const user = userEvent.setup()
-    const view = render(<App />)
-
-    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
-    expect(view.container.querySelector('.page-viewport[data-scene-runtime="overview"]')).not.toBeNull()
-    expect(view.container.querySelector('.circuit-canvas')).not.toBeNull()
-    expect(view.container.querySelector('.page-backdrop-static')).toBeNull()
-
-    await user.click(screen.getByRole('link', { name: /Ops Memory/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Central memory stream')).toBeInTheDocument()
-      expect(view.container.querySelector('.page-viewport[data-scene-runtime="route"]')).not.toBeNull()
-      expect(view.container.querySelector('.circuit-canvas')).toBeNull()
-      expect(view.container.querySelector('.page-backdrop-static')).not.toBeNull()
-    })
-  })
-
-  it('keeps the shared voice mode state while navigating away from overview', async () => {
-    render(
-      <CortexProvider>
-        <HashRouter>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <>
-                  <RealtimeNavigationDriver />
-                  <RealtimeNavigationProbe />
-                  <AppLayout />
-                </>
-              }
-            >
-              <Route index element={<OverviewPage />} />
-              <Route path="agents" element={<AgentsPage />} />
-            </Route>
-          </Routes>
-        </HashRouter>
-      </CortexProvider>,
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('ZiBz operations channel')).toBeInTheDocument()
-      expect(screen.getByText('neural_voice')).toBeInTheDocument()
-    })
-  })
-
-  it('renders the standalone realtime debug route and streams live entries', async () => {
-    const debugEntry: CortexRealtimeDebugEntry = {
-      id: 'debug-1',
-      timestamp: '2026-04-07T16:05:00.000Z',
-      source: 'main',
-      level: 'warn',
-      message: 'Realtime peer connection failed before becoming ready.',
-      context: {
-        mode: 'premium_voice',
-      },
-    }
-    let debugListener: ((entry: CortexRealtimeDebugEntry) => void) | null = null
-
-    window.location.hash = '#/debug'
-    window.cortexApi = {
-      ...window.cortexApi!,
-      getRealtimeDebugEntries: vi.fn().mockResolvedValue([debugEntry]),
-      subscribeToRealtimeDebug: vi.fn().mockImplementation((listener) => {
-        debugListener = listener
-        return () => {
-          debugListener = null
-        }
-      }),
+    for (const label of [
+      'Overview',
+      'Xylos',
+      'Knowledge',
+      'Workflows',
+      'Operations',
+      'Economy',
+      'Community',
+      'Studio',
+      'Integrations',
+    ]) {
+      expect(screen.getByRole('link', { name: label })).toBeInTheDocument()
     }
 
-    render(<App />)
+    expect(screen.queryByRole('link', { name: 'Missions' })).not.toBeInTheDocument()
 
-    expect(await screen.findByText('Milestone Grid')).toBeInTheDocument()
-    expect(
-      await screen.findAllByText('Realtime peer connection failed before becoming ready.'),
-    ).not.toHaveLength(0)
-    expect(screen.getByText('Recent activity')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()
-    const exportBox = screen.getByRole('textbox') as HTMLTextAreaElement
-    expect(exportBox.value).toContain(
-      'PRIME | MAIN | WARN | Realtime peer connection failed before becoming ready.',
-    )
-    expect(exportBox.value).not.toContain('{"timestamp"')
-
-    const listener = debugListener
-    if (listener) {
-      await act(async () => {
-        ;(listener as (entry: CortexRealtimeDebugEntry) => void)({
-          id: 'debug-2',
-          timestamp: '2026-04-07T16:05:02.000Z',
-          source: 'renderer',
-          level: 'warn',
-          message: 'Realtime user turn sent to the live session.',
-          context: {
-            status: 'executing',
-          },
-        })
-      })
-    }
-
-    expect(
-      await screen.findAllByText('Realtime user turn sent to the live session.'),
-    ).not.toHaveLength(0)
+    expect(screen.queryByRole('link', { name: /ops memory/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /agents/i })).not.toBeInTheDocument()
   })
 
-  it('can leave the ZiBz page through dock navigation without being forced back', async () => {
+  it('reveals overview indicator details on hover', async () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(await screen.findByRole('link', { name: /ZiBz/i }))
+    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
+    expect(screen.queryByText('Mission Load')).not.toBeInTheDocument()
+
+    await user.hover(screen.getByRole('button', { name: /mission load/i }))
+
+    expect(screen.getByText('Mission Load')).toBeInTheDocument()
+    expect(screen.getByText(/active of/i)).toBeInTheDocument()
+  })
+
+  it('gates ZiB details behind an explicit selection', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'Xylos' }))
+    expect(await screen.findByText('Xylos Index')).toBeInTheDocument()
+    expect(screen.getByText('Select a Xylos')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Command' })).toBeInTheDocument()
+    expect(screen.getByText('Xylos Workspace Locked')).toBeInTheDocument()
+    expect(screen.queryByText('Scavenjer GM Workspace')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Scavenjer GM/i }))
+    expect(await screen.findByText('Scavenjer GM Workspace')).toBeInTheDocument()
+    expect(screen.getAllByText('Missions').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Outputs').length).toBeGreaterThan(0)
+
+    await user.click(screen.getByRole('link', { name: 'Knowledge' }))
+    expect(await screen.findByText('Scavenjer Source Truth')).toBeInTheDocument()
+  })
+
+  it('renders a selection-first workflows view and validates required fields before save', async () => {
+    const user = userEvent.setup()
+    window.location.hash = '#/cortex/workflows'
+    window.cortexApi = createApiStub()
+    render(<App />)
+
+    expect(await screen.findByText('Workflow Registry')).toBeInTheDocument()
+    expect(screen.getByText('Select A Workflow')).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: /drop request to live drop workflow preview/i })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Drop Request To Live Drop' }))
+    expect(await screen.findByRole('img', { name: /drop request to live drop workflow preview/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'New Workflow' }))
+    await user.click(screen.getByRole('button', { name: 'Create Workflow' }))
+    expect(await screen.findByText('Title is required.')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Title'), 'Daily Workflow Export')
+    await user.type(
+      screen.getByLabelText('Description'),
+      'Exports the approved workflow inventory to downstream systems.',
+    )
+    await user.type(screen.getByPlaceholderText('Add a tool'), 'Export runner')
+    await user.click(screen.getByRole('button', { name: 'Add Tool' }))
+    await user.type(
+      screen.getByLabelText('Architecture'),
+      'Cron start, export transform, then delivery into archive storage.',
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Create Workflow' }))
+    expect(await screen.findByText('Diagram source is required for a new workflow.')).toBeInTheDocument()
+  })
+
+  it('persists the business mode toggle', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /toggle workspace context/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('ZiBz operations channel')).toBeInTheDocument()
+      expect(window.localStorage?.getItem?.(WORKSPACE_CONTEXT_STORAGE_KEY)).toBe('business')
     })
+  })
 
-    await user.click(screen.getByRole('link', { name: /Ops Memory/i }))
+  it('migrates the legacy mode flag into the business workspace landing', async () => {
+    window.localStorage?.setItem?.(UI_MODE_STORAGE_KEY, 'business')
 
-    await waitFor(() => {
-      expect(screen.getByText('Central memory stream')).toBeInTheDocument()
-      expect(screen.queryByText('ZiBz operations channel')).not.toBeInTheDocument()
-    })
+    render(<App />)
+
+    expect(await screen.findByText('Business OS')).toBeInTheDocument()
+    expect(screen.getByText('Hello Eric')).toBeInTheDocument()
+    expect(window.localStorage?.getItem?.(WORKSPACE_CONTEXT_STORAGE_KEY)).toBe('business')
   })
 })

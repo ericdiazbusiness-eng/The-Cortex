@@ -8,6 +8,9 @@ export const DEFAULT_REALTIME_MODEL = 'gpt-realtime-1.5'
 export const DEFAULT_REALTIME_VOICE = 'marin'
 const REALTIME_CALLS_URL = 'https://api.openai.com/v1/realtime/calls'
 
+const getOpenAIAuthHint = (status: number) =>
+  status === 401 ? ' Check OPENAI_API_KEY; OpenAI rejected the key as invalid or expired.' : ''
+
 type PermissionHandlerSession = Pick<
   Session,
   'setPermissionCheckHandler' | 'setPermissionRequestHandler'
@@ -170,7 +173,9 @@ export const createRealtimeCallAnswer = async (
       bodyPreview: body.slice(0, 240),
     })
     throw new Error(
-      `OpenAI realtime call failed (${response.status}): ${body || response.statusText}`,
+      `OpenAI realtime call failed (${response.status}): ${
+        body || response.statusText
+      }${getOpenAIAuthHint(response.status)}`,
     )
   }
 

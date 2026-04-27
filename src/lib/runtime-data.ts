@@ -4,10 +4,10 @@ const sameIdSet = <T extends { id: string }>(left: T[], right: T[]) =>
   left.length === right.length && left.every((entry, index) => entry.id === right[index]?.id)
 
 export const isFallbackSnapshot = (snapshot: CortexDashboardSnapshot) =>
-  sameIdSet(snapshot.agents, DEFAULT_FALLBACK_DATA.agents) &&
-  sameIdSet(snapshot.memories, DEFAULT_FALLBACK_DATA.memories) &&
-  sameIdSet(snapshot.jobs, DEFAULT_FALLBACK_DATA.jobs) &&
-  sameIdSet(snapshot.logs, DEFAULT_FALLBACK_DATA.logs)
+  sameIdSet(snapshot.missions, DEFAULT_FALLBACK_DATA.missions) &&
+  sameIdSet(snapshot.agentLanes, DEFAULT_FALLBACK_DATA.agentLanes) &&
+  sameIdSet(snapshot.vaultEntries, DEFAULT_FALLBACK_DATA.vaultEntries) &&
+  sameIdSet(snapshot.auditEvents, DEFAULT_FALLBACK_DATA.auditEvents)
 
 export const hasLiveDashboardData = (snapshot: CortexDashboardSnapshot | null) =>
   snapshot !== null && !isFallbackSnapshot(snapshot)

@@ -1,71 +1,18 @@
 {
   "dataSources": {
-    "agentsPath": "./fixtures/agents.json",
-    "memoriesPath": "./fixtures/memories.json",
-    "schedulesPath": "./fixtures/schedules.json",
-    "logsPath": "./fixtures/logs.json",
-    "systemPath": "./fixtures/system.json"
-  },
-  "commands": [
-    {
-      "id": "initialize-node",
-      "label": "Initialize Node",
-      "description": "Bootstraps the central hub and warms the orchestration mesh.",
-      "scope": "system",
-      "tone": "primary",
-      "command": "node",
-      "args": ["scripts/cortex-command.mjs", "initialize-node"],
-      "cwd": "."
-    },
-    {
-      "id": "start-engine",
-      "label": "Start Engine",
-      "description": "Ignites core throughput and opens the compute lattice.",
-      "scope": "system",
-      "tone": "primary",
-      "command": "node",
-      "args": ["scripts/cortex-command.mjs", "start-engine"],
-      "cwd": "."
-    },
-    {
-      "id": "resync-lattice",
-      "label": "Re-sync",
-      "description": "Rebalances lattice timing across the orchestration mesh.",
-      "scope": "schedule",
-      "tone": "secondary",
-      "command": "node",
-      "args": ["scripts/cortex-command.mjs", "resync-lattice"],
-      "cwd": "."
-    },
-    {
-      "id": "override-lock",
-      "label": "Override",
-      "description": "Sends a high-authority override to the edge rail.",
-      "scope": "system",
-      "tone": "danger",
-      "command": "node",
-      "args": ["scripts/cortex-command.mjs", "override-lock"],
-      "cwd": "."
-    },
-    {
-      "id": "wake-vortex",
-      "label": "Wake Vortex",
-      "description": "Pushes a wake signal to the edge relay agent.",
-      "scope": "agent",
-      "tone": "secondary",
-      "command": "node",
-      "args": ["scripts/cortex-command.mjs", "wake-vortex"],
-      "cwd": "."
-    },
-    {
-      "id": "archive-memory-scan",
-      "label": "Archive Sweep",
-      "description": "Executes a manual memory archival sweep.",
-      "scope": "memory",
-      "tone": "secondary",
-      "command": "node",
-      "args": ["scripts/cortex-command.mjs", "archive-memory-scan"],
-      "cwd": "."
-    }
-  ]
+    "missionsPath": "./fixtures/missions.json",
+    "approvalsPath": "./fixtures/approvals.json",
+    "lanesPath": "./fixtures/lanes.json",
+    "vaultPath": "./fixtures/vault.json",
+    "workflowsPath": "./fixtures/workflows.json",
+    "dropsPath": "./fixtures/drops.json",
+    "lorePath": "./fixtures/lore.json",
+    "studioPath": "./fixtures/studio.json",
+    "integrationsPath": "./fixtures/integrations.json",
+    "auditPath": "./fixtures/audit.json",
+    "economyPath": "./fixtures/economy.json",
+    "communityPath": "./fixtures/community.json",
+    "systemPath": "./fixtures/system.json",
+    "businessPath": "./fixtures/business-dashboard.json"
+  }
 }
