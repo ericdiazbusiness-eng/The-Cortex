@@ -11,12 +11,14 @@ import {
   type CortexAuditEvent,
   type CortexCommand,
   type CortexCommandResult,
+  type CortexDatabaseStatus,
   type CortexDashboardSnapshot,
   type CortexDrop,
   type CortexGatewayState,
   type CortexRealtimeLogEntry,
   type CortexStreamEvent,
   type CortexSystemSnapshot,
+  type CortexUsageIndicator,
   type CortexVaultEntry,
   type CortexWorkflow,
   type CortexWorkflowAsset,
@@ -24,9 +26,21 @@ import {
   type CortexWorkflowAssetUpload,
   type CortexWorkflowCreateInput,
   type CortexWorkflowUpdateInput,
+  type CortexVoiceActionConfirmation,
+  type CortexVoiceActionPrepared,
+  type CortexVoiceActionRequest,
+  type CortexVoiceActionResult,
   type WorkspaceContext,
   type WorkspaceSnapshot,
 } from '../src/shared/cortex'
+import { fetchOverviewUsageIndicators } from './provider-usage'
+import {
+  deleteSupabaseWorkflow,
+  hasSupabaseDatabaseConfig,
+  listSupabaseWorkflows,
+  readSupabaseConnectionStatus,
+  upsertSupabaseWorkflows,
+} from './supabase-db'
 
 export type CortexConfig = {
   dataSources: {
@@ -50,6 +64,7 @@ export type CortexConfig = {
 
 export type CortexRuntimeOptions = {
   gatewayProbe?: () => Promise<CortexGatewayState>
+  usageProbe?: () => Promise<CortexUsageIndicator[]>
 }
 
 export type RuntimeState = CortexDashboardSnapshot & {
@@ -61,9 +76,22 @@ const MAX_AUDIT_EVENTS = 40
 const DEFAULT_GATEWAY_PROCESS_TERMS = ['hermes', 'cortex profile gateway']
 const DEFAULT_WORKFLOW_ASSET_ROOT = path.join('fixtures', 'workflow-assets')
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg'])
+const DEFAULT_USAGE_REFRESH_INTERVAL_MS = 60_000
+const VOICE_ACTION_TTL_MS = 120_000
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 const isoNow = () => new Date().toISOString()
+
+const compactAuditValue = (value: unknown, limit = 420) => {
+  let serialized: string
+  try {
+    serialized = JSON.stringify(value)
+  } catch {
+    serialized = String(value)
+  }
+
+  return serialized.length > limit ? `${serialized.slice(0, limit - 3)}...` : serialized
+}
 
 const normalizeWindowsPath = (value: string) =>
   process.platform === 'win32' && value.startsWith('\\\\?\\') ? value.slice(4) : value
@@ -618,7 +646,11 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
   let businessState: BusinessDashboardSnapshot | null = null
   let activeConfig: CortexConfig | null = null
   let pulseTimer: NodeJS.Timeout | null = null
+  let lastUsageRefreshAt = 0
+  let usageRefreshPromise: Promise<boolean> | null = null
+  const pendingVoiceActions = new Map<string, CortexVoiceActionPrepared>()
   const gatewayProbe = options.gatewayProbe ?? defaultGatewayProbe
+  const usageProbe = options.usageProbe ?? fetchOverviewUsageIndicators
   const listeners = new Set<(event: CortexStreamEvent) => void>()
 
   const readGatewayState = async (): Promise<CortexGatewayState> => {
@@ -630,6 +662,34 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
         status: 'unknown',
         lastCheckedAt: isoNow(),
       }
+    }
+  }
+
+  const readWorkflowRecords = async (fallbackWorkflows: CortexWorkflow[]) => {
+    if (!hasSupabaseDatabaseConfig()) {
+      return fallbackWorkflows
+    }
+
+    try {
+      const supabaseWorkflows = await listSupabaseWorkflows()
+      if (!supabaseWorkflows.length) {
+        await upsertSupabaseWorkflows(
+          fallbackWorkflows.map((workflow) => stripWorkflowPreviewData(workflow)),
+        )
+        return fallbackWorkflows
+      }
+
+      return (
+        await Promise.all(
+          supabaseWorkflows.map((workflow) => hydrateWorkflow(normalizedProjectRoot, workflow)),
+        )
+      ).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    } catch (error) {
+      console.warn(
+        'Supabase workflow read failed. Falling back to local workflow fixtures.',
+        error,
+      )
+      return fallbackWorkflows
     }
   }
 
@@ -658,7 +718,7 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
       resolveProjectPath(normalizedProjectRoot, config.dataSources.vaultPath),
       seeded.vaultEntries,
     )
-    seeded.workflows = (
+    const fixtureWorkflows = (
       await Promise.all(
         (
           await readJsonFile(
@@ -668,6 +728,7 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
         ).map((workflow) => hydrateWorkflow(normalizedProjectRoot, workflow)),
       )
     ).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    seeded.workflows = await readWorkflowRecords(fixtureWorkflows)
     seeded.drops = await readJsonFile(
       resolveProjectPath(normalizedProjectRoot, config.dataSources.dropsPath),
       seeded.drops,
@@ -738,6 +799,11 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
       resolveProjectPath(normalizedProjectRoot, config.dataSources.workflowsPath),
       current.workflows.map((workflow) => stripWorkflowPreviewData(workflow)),
     )
+    if (hasSupabaseDatabaseConfig()) {
+      await upsertSupabaseWorkflows(
+        current.workflows.map((workflow) => stripWorkflowPreviewData(workflow)),
+      )
+    }
 
     return current.workflows
   }
@@ -766,7 +832,216 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
     listeners.forEach((listener) => listener(event))
   }
 
-  return {
+  const refreshUsageIndicators = async (force = false) => {
+    const current = await ensureState()
+    const refreshIntervalMs = Math.max(
+      15_000,
+      Number(process.env.CORTEX_USAGE_REFRESH_MS ?? DEFAULT_USAGE_REFRESH_INTERVAL_MS) ||
+        DEFAULT_USAGE_REFRESH_INTERVAL_MS,
+    )
+
+    if (!force && lastUsageRefreshAt > 0 && Date.now() - lastUsageRefreshAt < refreshIntervalMs) {
+      return false
+    }
+
+    if (usageRefreshPromise) {
+      return usageRefreshPromise
+    }
+
+    usageRefreshPromise = (async () => {
+      current.usageIndicators = await usageProbe()
+      lastUsageRefreshAt = Date.now()
+      return true
+    })()
+
+    try {
+      return await usageRefreshPromise
+    } finally {
+      usageRefreshPromise = null
+    }
+  }
+
+  const countCortexEntities = (current: RuntimeState) =>
+    current.missions.length +
+    current.approvals.length +
+    current.agentLanes.length +
+    current.vaultEntries.length +
+    current.workflows.length +
+    current.drops.length +
+    current.loreEntries.length +
+    current.studioAssets.length +
+    current.integrationMonitors.length +
+    current.usageIndicators.length +
+    current.auditEvents.length +
+    current.economyMetrics.length +
+    current.communitySignals.length +
+    current.commands.length +
+    1
+
+  const countBusinessEntities = (current: BusinessDashboardSnapshot) =>
+    current.metrics.length +
+    current.relationships.length +
+    current.queue.length +
+    current.sections.length +
+    current.commands.length +
+    1
+
+  const getDatabaseStatus = async (): Promise<CortexDatabaseStatus> => {
+    const [current, business, supabaseStatus] = await Promise.all([
+      ensureState(),
+      ensureBusinessState(),
+      readSupabaseConnectionStatus(),
+    ])
+    const source = supabaseStatus.configured ? 'mixed' : 'fixtures'
+
+    return {
+      configured: supabaseStatus.configured,
+      connected: supabaseStatus.connected,
+      source,
+      checkedAt: supabaseStatus.checkedAt,
+      error: supabaseStatus.error,
+      workspaces: [
+        {
+          workspace: 'cortex',
+          source,
+          entityCount: countCortexEntities(current),
+          stale: false,
+        },
+        {
+          workspace: 'business',
+          source: 'fixtures',
+          entityCount: countBusinessEntities(business),
+          stale: false,
+        },
+      ],
+      tables: [
+        {
+          name: 'public.cortex_workflows',
+          configured: supabaseStatus.configured,
+          connected: supabaseStatus.connected,
+          readOnly: true,
+          recordCount: current.workflows.length,
+          lastCheckedAt: supabaseStatus.checkedAt,
+          error: supabaseStatus.error,
+        },
+        {
+          name: 'fixtures.business_dashboard',
+          configured: true,
+          connected: true,
+          readOnly: true,
+          recordCount: countBusinessEntities(business),
+          lastCheckedAt: isoNow(),
+          error: null,
+        },
+      ],
+    }
+  }
+
+  const makeVoiceActionId = () =>
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? `voice-action-${crypto.randomUUID()}`
+      : `voice-action-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
+
+  const prepareVoiceAction = async (
+    payload: CortexVoiceActionRequest,
+  ): Promise<CortexVoiceActionPrepared> => {
+    const expiresAt = new Date(Date.now() + VOICE_ACTION_TTL_MS).toISOString()
+    const prepared: CortexVoiceActionPrepared = {
+      actionId: makeVoiceActionId(),
+      action: payload.action,
+      workspace: payload.workspace,
+      parameters: clone(payload.parameters),
+      reason: payload.reason?.trim() || null,
+      transcript: payload.transcript?.trim() || null,
+      requiresConfirmation: true,
+      expiresAt,
+      summary: `${payload.action} prepared for ${payload.workspace}.`,
+    }
+
+    pendingVoiceActions.set(prepared.actionId, prepared)
+    return prepared
+  }
+
+  const makeVoiceActionResult = (
+    prepared: CortexVoiceActionPrepared,
+    patch: Partial<CortexVoiceActionResult>,
+  ): CortexVoiceActionResult => ({
+    actionId: prepared.actionId,
+    action: prepared.action,
+    workspace: prepared.workspace,
+    ok: false,
+    confirmed: false,
+    canceled: false,
+    result: null,
+    error: null,
+    auditedAt: isoNow(),
+    ...patch,
+  })
+
+  const executePreparedVoiceAction = async (
+    prepared: CortexVoiceActionPrepared,
+    api: {
+      runWorkspaceCommand: (
+        workspace: WorkspaceContext,
+        commandId: string,
+        context?: string,
+      ) => Promise<CortexCommandResult>
+      getWorkspaceSnapshot: (workspace: WorkspaceContext) => Promise<WorkspaceSnapshot>
+      createWorkflow: (payload: CortexWorkflowCreateInput) => Promise<CortexWorkflow>
+      updateWorkflow: (payload: CortexWorkflowUpdateInput) => Promise<CortexWorkflow>
+      deleteWorkflow: (workflowId: string) => Promise<void>
+    },
+  ): Promise<unknown> => {
+    switch (prepared.action) {
+      case 'run_workspace_command': {
+        const commandId =
+          typeof prepared.parameters.commandId === 'string'
+            ? prepared.parameters.commandId
+            : ''
+        const context =
+          typeof prepared.parameters.context === 'string'
+            ? prepared.parameters.context
+            : prepared.reason ?? undefined
+        if (!commandId) {
+          throw new Error('run_workspace_command requires commandId.')
+        }
+        return api.runWorkspaceCommand(prepared.workspace, commandId, context)
+      }
+      case 'refresh_workspace':
+        return api.getWorkspaceSnapshot(prepared.workspace)
+      case 'create_workflow':
+        if (prepared.workspace !== 'cortex') {
+          throw new Error('create_workflow is only available in the Cortex workspace.')
+        }
+        return api.createWorkflow(prepared.parameters as CortexWorkflowCreateInput)
+      case 'update_workflow':
+        if (prepared.workspace !== 'cortex') {
+          throw new Error('update_workflow is only available in the Cortex workspace.')
+        }
+        return api.updateWorkflow(prepared.parameters as CortexWorkflowUpdateInput)
+      case 'delete_workflow': {
+        if (prepared.workspace !== 'cortex') {
+          throw new Error('delete_workflow is only available in the Cortex workspace.')
+        }
+        const workflowId =
+          typeof prepared.parameters.workflowId === 'string'
+            ? prepared.parameters.workflowId
+            : ''
+        if (!workflowId) {
+          throw new Error('delete_workflow requires workflowId.')
+        }
+        await api.deleteWorkflow(workflowId)
+        return {
+          ok: true,
+          workflowId,
+        }
+      }
+      default:
+        throw new Error(`Unsupported voice action: ${prepared.action}`)
+    }
+  }
+
+  const runtime = {
     async getWorkspaceSnapshot(workspace: WorkspaceContext): Promise<WorkspaceSnapshot> {
       if (workspace === 'business') {
         const current = await ensureBusinessState()
@@ -785,6 +1060,7 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
     async getDashboardSnapshot(): Promise<CortexDashboardSnapshot> {
       const current = await ensureState()
       current.gateway = await readGatewayState()
+      await refreshUsageIndicators()
       return clone({
         missions: current.missions,
         approvals: current.approvals,
@@ -795,6 +1071,7 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
         loreEntries: current.loreEntries,
         studioAssets: current.studioAssets,
         integrationMonitors: current.integrationMonitors,
+        usageIndicators: current.usageIndicators,
         auditEvents: current.auditEvents,
         economyMetrics: current.economyMetrics,
         communitySignals: current.communitySignals,
@@ -802,6 +1079,115 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
         system: current.system,
         gateway: current.gateway,
       })
+    },
+    async getDatabaseStatus(): Promise<CortexDatabaseStatus> {
+      return getDatabaseStatus()
+    },
+    async prepareVoiceAction(
+      payload: CortexVoiceActionRequest,
+    ): Promise<CortexVoiceActionPrepared> {
+      const prepared = await prepareVoiceAction(payload)
+      await this.recordRealtimeLog({
+        channel: 'realtime',
+        severity: 'info',
+        message:
+          `Prepared voice action ${prepared.action} (${prepared.actionId}) in ${prepared.workspace}. ` +
+          `transcript=${compactAuditValue(prepared.transcript)}; ` +
+          `parameters=${compactAuditValue(prepared.parameters)}.`,
+        accent: 'cyan',
+      })
+      return clone(prepared)
+    },
+    async confirmVoiceAction(
+      payload: CortexVoiceActionConfirmation,
+    ): Promise<CortexVoiceActionResult> {
+      const prepared = pendingVoiceActions.get(payload.actionId)
+      if (!prepared) {
+        return {
+          actionId: payload.actionId,
+          action: 'refresh_workspace',
+          workspace: 'cortex',
+          ok: false,
+          confirmed: payload.confirmed,
+          canceled: !payload.confirmed,
+          result: null,
+          error: 'Prepared voice action was not found or already resolved.',
+          auditedAt: isoNow(),
+        }
+      }
+
+      pendingVoiceActions.delete(payload.actionId)
+      if (new Date(prepared.expiresAt).getTime() < Date.now()) {
+        await this.recordRealtimeLog({
+          channel: 'realtime',
+          severity: 'warning',
+          message:
+            `Expired voice action ${prepared.action} (${prepared.actionId}) in ${prepared.workspace}. ` +
+            `transcript=${compactAuditValue(payload.transcript ?? prepared.transcript)}; ` +
+            `parameters=${compactAuditValue(prepared.parameters)}.`,
+          accent: 'amber',
+        })
+        return makeVoiceActionResult(prepared, {
+          ok: false,
+          confirmed: payload.confirmed,
+          canceled: true,
+          error: 'Prepared voice action expired before confirmation.',
+        })
+      }
+
+      if (!payload.confirmed) {
+        await this.recordRealtimeLog({
+          channel: 'realtime',
+          severity: 'info',
+          message:
+            `Canceled voice action ${prepared.action} (${prepared.actionId}) in ${prepared.workspace}. ` +
+            `transcript=${compactAuditValue(payload.transcript ?? prepared.transcript)}; ` +
+            `parameters=${compactAuditValue(prepared.parameters)}.`,
+          accent: 'amber',
+        })
+        return makeVoiceActionResult(prepared, {
+          ok: true,
+          confirmed: false,
+          canceled: true,
+        })
+      }
+
+      try {
+        const result = await executePreparedVoiceAction(prepared, runtime)
+        await this.recordRealtimeLog({
+          channel: 'realtime',
+          severity: 'success',
+          message:
+            `Confirmed voice action ${prepared.action} (${prepared.actionId}) in ${prepared.workspace}. ` +
+            `transcript=${compactAuditValue(payload.transcript ?? prepared.transcript)}; ` +
+            `parameters=${compactAuditValue(prepared.parameters)}; ` +
+            `result=${compactAuditValue(result)}.`,
+          accent: 'green',
+        })
+        return makeVoiceActionResult(prepared, {
+          ok: true,
+          confirmed: true,
+          canceled: false,
+          result,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Voice action failed.'
+        await this.recordRealtimeLog({
+          channel: 'realtime',
+          severity: 'warning',
+          message:
+            `Voice action ${prepared.action} (${prepared.actionId}) failed in ${prepared.workspace}. ` +
+            `transcript=${compactAuditValue(payload.transcript ?? prepared.transcript)}; ` +
+            `parameters=${compactAuditValue(prepared.parameters)}; error=${message}.`,
+          accent: 'amber',
+        })
+        return makeVoiceActionResult(prepared, {
+          ok: false,
+          confirmed: true,
+          canceled: false,
+          error: message,
+        })
+      }
     },
     async listAgents(): Promise<CortexAgentLane[]> {
       return clone((await ensureState()).agentLanes)
@@ -936,6 +1322,9 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
         force: true,
       })
       await persistWorkflows(current.workflows.filter((item) => item.id !== workflowId))
+      if (hasSupabaseDatabaseConfig()) {
+        await deleteSupabaseWorkflow(workflowId)
+      }
     },
     async downloadWorkflowAsset(
       payload: CortexWorkflowAssetDownloadRequest,
@@ -1078,6 +1467,9 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
           emit({ kind: 'systemPulse', snapshot: current.system })
           current.gateway = await readGatewayState()
           emit({ kind: 'gatewayPulse', gateway: current.gateway })
+          if (await refreshUsageIndicators()) {
+            emit({ kind: 'usagePulse', indicators: clone(current.usageIndicators) })
+          }
         }, 6000)
       }
 
@@ -1090,4 +1482,6 @@ export function createCortexRuntime(projectRoot: string, options: CortexRuntimeO
       }
     },
   }
+
+  return runtime
 }

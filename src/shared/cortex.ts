@@ -42,12 +42,107 @@ export type CortexRealtimeMode =
   | 'lean_voice'
   | 'tool_voice'
   | 'ui_director'
-export type CortexVoiceRuntime = 'voice_pipeline' | 'experimental_realtime_webrtc'
+export type CortexVoiceRuntime = 'gpt_realtime_webrtc' | 'voice_pipeline'
 export type CortexVoiceProfileSet = 'default_three_mode' | 'legacy_four_mode'
 export type CortexVoiceProvider = 'openai' | 'elevenlabs'
 export type CortexRealtimeNavigationPolicy = 'auto' | 'ask_then_move' | 'focus_only'
 export type CortexRealtimeToolPreference = 'read_first' | 'ui_first'
 export type CortexRealtimeToolGroup = 'read' | 'ui_action' | 'execution'
+export type CortexDatabaseEntityType =
+  | 'mission'
+  | 'approval'
+  | 'operator'
+  | 'memory'
+  | 'workflow'
+  | 'drop'
+  | 'lore'
+  | 'studio_asset'
+  | 'integration'
+  | 'usage_indicator'
+  | 'audit_event'
+  | 'economy_metric'
+  | 'community_signal'
+  | 'business_metric'
+  | 'business_relationship'
+  | 'business_queue_item'
+  | 'business_section'
+  | 'command'
+  | 'system'
+export type CortexDatabaseStatus = {
+  configured: boolean
+  connected: boolean
+  source: 'supabase' | 'fixtures' | 'browser_fallback' | 'mixed'
+  checkedAt: string
+  error: string | null
+  workspaces: Array<{
+    workspace: WorkspaceContext
+    source: 'supabase' | 'fixtures' | 'browser_fallback' | 'mixed'
+    entityCount: number
+    stale: boolean
+  }>
+  tables: Array<{
+    name: string
+    configured: boolean
+    connected: boolean
+    readOnly: boolean
+    recordCount: number | null
+    lastCheckedAt: string
+    error: string | null
+  }>
+}
+export type CortexVoiceActionType =
+  | 'navigate_ui'
+  | 'focus_record'
+  | 'run_workspace_command'
+  | 'refresh_workspace'
+  | 'create_workflow'
+  | 'update_workflow'
+  | 'delete_workflow'
+export type CortexVoiceActionRequest = {
+  action: CortexVoiceActionType
+  workspace: WorkspaceContext
+  parameters: Record<string, unknown>
+  reason?: string | null
+  transcript?: string | null
+}
+export type CortexVoiceActionPrepared = {
+  actionId: string
+  action: CortexVoiceActionType
+  workspace: WorkspaceContext
+  parameters: Record<string, unknown>
+  reason: string | null
+  transcript: string | null
+  requiresConfirmation: true
+  expiresAt: string
+  summary: string
+}
+export type CortexVoiceActionConfirmation = {
+  actionId: string
+  confirmed: boolean
+  transcript?: string | null
+}
+export type CortexVoiceActionResult = {
+  actionId: string
+  action: CortexVoiceActionType
+  workspace: WorkspaceContext
+  ok: boolean
+  confirmed: boolean
+  canceled: boolean
+  result: unknown
+  error: string | null
+  auditedAt: string
+}
+export type CortexRealtimeLatencyMarks = {
+  sessionStartedAt: string | null
+  speechStartedAt: string | null
+  speechStoppedAt: string | null
+  responseStartedAt: string | null
+  toolStartedAt: string | null
+  toolCompletedAt: string | null
+  firstAudioAt: string | null
+  cancelledAt: string | null
+  fallbackAt: string | null
+}
 export type CortexGatewayStatus = 'unknown' | 'off' | 'on'
 export type CortexGatewayState = {
   status: CortexGatewayStatus
@@ -186,6 +281,7 @@ export type CortexRealtimeModeProfile = {
   color: 'cyan' | 'green' | 'amber' | 'magenta'
   glyph: 'pulse' | 'ring' | 'delta' | 'focus' | 'wave'
   runtime: CortexVoiceRuntime
+  realtimeModel?: string
   textModel?: string
   transcriptionProvider: CortexVoiceProvider
   transcriptionModel?: string
@@ -206,6 +302,7 @@ export type CortexRealtimeSessionRequest = {
   context: CortexViewContext
   mode: CortexRealtimeMode
   runtime: CortexVoiceRuntime
+  realtimeModel?: string
   textModel?: string
   transcriptionProvider: CortexVoiceProvider
   transcriptionModel?: string
@@ -353,6 +450,7 @@ export type CortexRealtimeState = {
     timestamp: string
   } | null
   lastCompletedStageAt: string | null
+  latency: CortexRealtimeLatencyMarks | null
 }
 
 export type CortexRealtimeLogEntry = {
@@ -591,6 +689,19 @@ export type CortexIntegrationMonitor = {
   accent: AccentTone
 }
 
+export type CortexUsageIndicatorId = 'elevenlabs' | 'codex_session' | 'codex_weekly'
+
+export type CortexUsageIndicator = {
+  id: CortexUsageIndicatorId
+  label: string
+  detail: string
+  symbol: string
+  value: number
+  tone: 'cyan' | 'magenta' | 'green'
+  source: 'live' | 'fallback' | 'unavailable'
+  refreshedAt: string | null
+}
+
 export type CortexAuditEvent = {
   id: string
   timestamp: string
@@ -729,6 +840,7 @@ export type CortexDashboardSnapshot = {
   loreEntries: CortexLoreEntry[]
   studioAssets: CortexStudioAsset[]
   integrationMonitors: CortexIntegrationMonitor[]
+  usageIndicators: CortexUsageIndicator[]
   auditEvents: CortexAuditEvent[]
   economyMetrics: CortexEconomyMetric[]
   communitySignals: CortexCommunitySignal[]
@@ -752,10 +864,12 @@ export type CortexStreamEvent =
   | { kind: 'log'; log: CortexAuditEvent }
   | { kind: 'commandResult'; result: CortexCommandResult }
   | { kind: 'gatewayPulse'; gateway: CortexGatewayState }
+  | { kind: 'usagePulse'; indicators: CortexUsageIndicator[] }
 
 export type CortexBridge = {
   getWorkspaceSnapshot: (workspace: WorkspaceContext) => Promise<WorkspaceSnapshot>
   getDashboardSnapshot: () => Promise<CortexDashboardSnapshot>
+  getDatabaseStatus: () => Promise<CortexDatabaseStatus>
   listAgents: () => Promise<CortexAgentLane[]>
   listMemories: () => Promise<CortexVaultEntry[]>
   listWorkflows: () => Promise<CortexWorkflow[]>
@@ -773,6 +887,12 @@ export type CortexBridge = {
     context?: string,
   ) => Promise<CortexCommandResult>
   runCommand: (commandId: string, context?: string) => Promise<CortexCommandResult>
+  prepareVoiceAction: (
+    payload: CortexVoiceActionRequest,
+  ) => Promise<CortexVoiceActionPrepared>
+  confirmVoiceAction: (
+    payload: CortexVoiceActionConfirmation,
+  ) => Promise<CortexVoiceActionResult>
   createRealtimeCall: (
     offerSdp: string,
     payload: CortexRealtimeSessionRequest,
@@ -815,6 +935,7 @@ export const DEFAULT_REALTIME_STATE: CortexRealtimeState = {
   lastAbortedStage: null,
   lastFailure: null,
   lastCompletedStageAt: null,
+  latency: null,
 }
 
 export const DEFAULT_GATEWAY_STATE: CortexGatewayState = {
@@ -830,7 +951,13 @@ export const REALTIME_MODE_STORAGE_KEY = 'cortex-realtime-mode'
 // - UI action tools reveal where that data lives by navigating or focusing the UI
 // - execution tools change runtime state only when the user explicitly requests it
 export const CORTEX_READ_TOOL_NAMES = [
+  'get_workspace_snapshot',
   'get_dashboard_snapshot',
+  'get_route_context',
+  'get_database_status',
+  'list_database_entities',
+  'search_database_entities',
+  'get_focused_record',
   'get_system_metrics',
   'list_agents',
   'list_memories',
@@ -841,12 +968,19 @@ export const CORTEX_READ_TOOL_NAMES = [
 ] as const
 
 export const BUSINESS_READ_TOOL_NAMES = [
+  'get_workspace_snapshot',
   'get_dashboard_snapshot',
+  'get_route_context',
+  'get_database_status',
+  'list_database_entities',
+  'search_database_entities',
+  'get_focused_record',
   'get_ui_context',
 ] as const
 
 export const CORTEX_UI_ACTION_TOOL_NAMES = [
   'navigate_ui',
+  'focus_record',
   'focus_agent',
   'focus_memory',
   'focus_workflow',
@@ -855,9 +989,13 @@ export const CORTEX_UI_ACTION_TOOL_NAMES = [
   'focus_marketing_metric',
 ] as const
 
-export const BUSINESS_UI_ACTION_TOOL_NAMES = ['navigate_ui'] as const
+export const BUSINESS_UI_ACTION_TOOL_NAMES = ['navigate_ui', 'focus_record'] as const
 
-export const CORTEX_EXECUTION_TOOL_NAMES = ['run_command'] as const
+export const CORTEX_EXECUTION_TOOL_NAMES = [
+  'prepare_voice_action',
+  'confirm_voice_action',
+  'run_command',
+] as const
 
 export const DEFAULT_CORTEX_PROFILE_SET: CortexVoiceProfileSet = 'default_three_mode'
 export const LEGACY_CORTEX_PROFILE_SET: CortexVoiceProfileSet = 'legacy_four_mode'
@@ -888,103 +1026,6 @@ const readConfiguredProfileSet = (): CortexVoiceProfileSet => {
 
 export const getConfiguredCortexProfileSet = () => readConfiguredProfileSet()
 
-const buildLegacyRealtimeModeProfiles = (): Record<
-  CortexRealtimeMode,
-  CortexRealtimeModeProfile
-> => ({
-  premium_voice: {
-    id: 'premium_voice',
-    ariaLabel: 'Premium voice mode',
-    color: 'cyan',
-    glyph: 'pulse',
-    runtime: 'voice_pipeline',
-    textModel: 'gpt-4.1',
-    transcriptionProvider: 'openai',
-    transcriptionModel: 'gpt-4o-mini-transcribe',
-    speechProvider: 'openai',
-    speechModel: 'gpt-4o-mini-tts',
-    voice: 'marin',
-    silentOutput: false,
-    navigationPolicy: 'auto',
-    toolPreference: 'read_first',
-    preferredToolGroups: ['read', 'ui_action', 'execution'],
-  },
-  neural_voice: {
-    id: 'neural_voice',
-    ariaLabel: 'Neural voice mode',
-    color: 'amber',
-    glyph: 'wave',
-    runtime: 'voice_pipeline',
-    textModel: 'gpt-4.1-mini',
-    transcriptionProvider: 'elevenlabs',
-    transcriptionModel: 'scribe_v2_realtime',
-    speechProvider: 'elevenlabs',
-    speechModel: 'eleven_flash_v2_5',
-    voice: 'elevenlabs-custom',
-    voiceSettings: {
-      stability: 0.42,
-      similarityBoost: 0.78,
-      style: 0.28,
-      speed: 1,
-      useSpeakerBoost: true,
-    },
-    silentOutput: false,
-    navigationPolicy: 'auto',
-    toolPreference: 'read_first',
-    preferredToolGroups: ['read', 'ui_action', 'execution'],
-  },
-  lean_voice: {
-    id: 'lean_voice',
-    ariaLabel: 'Lean voice mode',
-    color: 'green',
-    glyph: 'ring',
-    runtime: 'voice_pipeline',
-    textModel: 'gpt-4.1-mini',
-    transcriptionProvider: 'openai',
-    transcriptionModel: 'gpt-4o-mini-transcribe',
-    speechProvider: 'openai',
-    speechModel: 'gpt-4o-mini-tts',
-    voice: 'marin',
-    silentOutput: false,
-    navigationPolicy: 'auto',
-    toolPreference: 'read_first',
-    preferredToolGroups: ['read', 'ui_action', 'execution'],
-  },
-  tool_voice: {
-    id: 'tool_voice',
-    ariaLabel: 'Tool voice mode',
-    color: 'amber',
-    glyph: 'delta',
-    runtime: 'voice_pipeline',
-    textModel: 'gpt-4.1-mini',
-    transcriptionProvider: 'openai',
-    transcriptionModel: 'gpt-4o-mini-transcribe',
-    speechProvider: 'openai',
-    speechModel: 'gpt-4o-mini-tts',
-    voice: 'marin',
-    silentOutput: false,
-    navigationPolicy: 'auto',
-    toolPreference: 'read_first',
-    preferredToolGroups: ['read', 'ui_action', 'execution'],
-  },
-  ui_director: {
-    id: 'ui_director',
-    ariaLabel: 'UI director mode',
-    color: 'magenta',
-    glyph: 'focus',
-    runtime: 'voice_pipeline',
-    textModel: 'gpt-4.1-mini',
-    transcriptionProvider: 'openai',
-    transcriptionModel: 'gpt-4o-mini-transcribe',
-    speechProvider: 'openai',
-    voice: 'marin',
-    silentOutput: true,
-    navigationPolicy: 'ask_then_move',
-    toolPreference: 'ui_first',
-    preferredToolGroups: ['ui_action', 'read', 'execution'],
-  },
-})
-
 const buildDefaultRealtimeModeProfiles = (): Record<
   CortexRealtimeMode,
   CortexRealtimeModeProfile
@@ -995,6 +1036,131 @@ const buildDefaultRealtimeModeProfiles = (): Record<
     color: 'cyan',
     glyph: 'pulse',
     runtime: 'voice_pipeline',
+    realtimeModel: 'gpt-realtime-1.5',
+    textModel: 'gpt-4.1',
+    transcriptionProvider: 'openai',
+    transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'elevenlabs',
+    speechModel: 'eleven_flash_v2_5',
+    voice: 'elevenlabs-custom',
+    voiceSettings: {
+      stability: 0.42,
+      similarityBoost: 0.78,
+      style: 0.3,
+      speed: 1.03,
+      useSpeakerBoost: true,
+    },
+    silentOutput: false,
+    navigationPolicy: 'auto',
+    toolPreference: 'read_first',
+    preferredToolGroups: ['read', 'ui_action', 'execution'],
+  },
+  neural_voice: {
+    id: 'neural_voice',
+    ariaLabel: 'Neural voice mode',
+    color: 'amber',
+    glyph: 'wave',
+    runtime: 'voice_pipeline',
+    realtimeModel: 'gpt-realtime-1.5',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'openai',
+    transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'elevenlabs',
+    speechModel: 'eleven_flash_v2_5',
+    voice: 'elevenlabs-custom',
+    voiceSettings: {
+      stability: 0.42,
+      similarityBoost: 0.78,
+      style: 0.28,
+      speed: 1.04,
+      useSpeakerBoost: true,
+    },
+    silentOutput: false,
+    navigationPolicy: 'auto',
+    toolPreference: 'read_first',
+    preferredToolGroups: ['read', 'ui_action', 'execution'],
+  },
+  lean_voice: {
+    id: 'lean_voice',
+    ariaLabel: 'Lean voice mode',
+    color: 'green',
+    glyph: 'ring',
+    runtime: 'voice_pipeline',
+    realtimeModel: 'gpt-realtime-1.5',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'openai',
+    transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'elevenlabs',
+    speechModel: 'eleven_flash_v2_5',
+    voice: 'elevenlabs-custom',
+    voiceSettings: {
+      stability: 0.46,
+      similarityBoost: 0.72,
+      style: 0.12,
+      speed: 1.08,
+      useSpeakerBoost: false,
+    },
+    silentOutput: false,
+    navigationPolicy: 'auto',
+    toolPreference: 'read_first',
+    preferredToolGroups: ['read', 'ui_action', 'execution'],
+  },
+  tool_voice: {
+    id: 'tool_voice',
+    ariaLabel: 'Tool voice mode',
+    color: 'amber',
+    glyph: 'delta',
+    runtime: 'voice_pipeline',
+    realtimeModel: 'gpt-realtime-1.5',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'openai',
+    transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'elevenlabs',
+    speechModel: 'eleven_flash_v2_5',
+    voice: 'elevenlabs-custom',
+    voiceSettings: {
+      stability: 0.48,
+      similarityBoost: 0.72,
+      style: 0.08,
+      speed: 1.06,
+      useSpeakerBoost: false,
+    },
+    silentOutput: false,
+    navigationPolicy: 'auto',
+    toolPreference: 'read_first',
+    preferredToolGroups: ['read', 'ui_action', 'execution'],
+  },
+  ui_director: {
+    id: 'ui_director',
+    ariaLabel: 'UI director mode',
+    color: 'magenta',
+    glyph: 'focus',
+    runtime: 'voice_pipeline',
+    realtimeModel: 'gpt-realtime-1.5',
+    textModel: 'gpt-4.1-mini',
+    transcriptionProvider: 'openai',
+    transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'elevenlabs',
+    speechModel: 'eleven_flash_v2_5',
+    voice: 'elevenlabs-custom',
+    silentOutput: true,
+    navigationPolicy: 'ask_then_move',
+    toolPreference: 'ui_first',
+    preferredToolGroups: ['ui_action', 'read', 'execution'],
+  },
+})
+
+const buildLegacyRealtimeModeProfiles = (): Record<
+  CortexRealtimeMode,
+  CortexRealtimeModeProfile
+> => ({
+  premium_voice: {
+    id: 'premium_voice',
+    ariaLabel: 'Premium voice mode',
+    color: 'cyan',
+    glyph: 'pulse',
+    runtime: 'gpt_realtime_webrtc',
+    realtimeModel: 'gpt-realtime-1.5',
     textModel: 'gpt-4.1',
     transcriptionProvider: 'openai',
     transcriptionModel: 'gpt-4o-mini-transcribe',
@@ -1011,20 +1177,14 @@ const buildDefaultRealtimeModeProfiles = (): Record<
     ariaLabel: 'Neural voice mode',
     color: 'amber',
     glyph: 'wave',
-    runtime: 'voice_pipeline',
+    runtime: 'gpt_realtime_webrtc',
+    realtimeModel: 'gpt-realtime-1.5',
     textModel: 'gpt-4.1-mini',
-    transcriptionProvider: 'elevenlabs',
-    transcriptionModel: 'scribe_v2_realtime',
-    speechProvider: 'elevenlabs',
-    speechModel: 'eleven_flash_v2_5',
-    voice: 'elevenlabs-custom',
-    voiceSettings: {
-      stability: 0.42,
-      similarityBoost: 0.78,
-      style: 0.28,
-      speed: 1,
-      useSpeakerBoost: true,
-    },
+    transcriptionProvider: 'openai',
+    transcriptionModel: 'gpt-4o-mini-transcribe',
+    speechProvider: 'openai',
+    speechModel: 'gpt-4o-mini-tts',
+    voice: 'cedar',
     silentOutput: false,
     navigationPolicy: 'auto',
     toolPreference: 'read_first',
@@ -1035,7 +1195,8 @@ const buildDefaultRealtimeModeProfiles = (): Record<
     ariaLabel: 'Lean voice mode',
     color: 'green',
     glyph: 'ring',
-    runtime: 'voice_pipeline',
+    runtime: 'gpt_realtime_webrtc',
+    realtimeModel: 'gpt-realtime-1.5',
     textModel: 'gpt-4.1-mini',
     transcriptionProvider: 'openai',
     transcriptionModel: 'gpt-4o-mini-transcribe',
@@ -1052,7 +1213,8 @@ const buildDefaultRealtimeModeProfiles = (): Record<
     ariaLabel: 'Tool voice mode',
     color: 'amber',
     glyph: 'delta',
-    runtime: 'voice_pipeline',
+    runtime: 'gpt_realtime_webrtc',
+    realtimeModel: 'gpt-realtime-1.5',
     textModel: 'gpt-4.1-mini',
     transcriptionProvider: 'openai',
     transcriptionModel: 'gpt-4o-mini-transcribe',
@@ -1069,7 +1231,8 @@ const buildDefaultRealtimeModeProfiles = (): Record<
     ariaLabel: 'UI director mode',
     color: 'magenta',
     glyph: 'focus',
-    runtime: 'voice_pipeline',
+    runtime: 'gpt_realtime_webrtc',
+    realtimeModel: 'gpt-realtime-1.5',
     textModel: 'gpt-4.1-mini',
     transcriptionProvider: 'openai',
     transcriptionModel: 'gpt-4o-mini-transcribe',
@@ -1123,7 +1286,7 @@ export const resolveStoredRealtimeMode = (
 // Active mode registry for runtime usage.
 export const CORTEX_REALTIME_MODE_PROFILES = getRealtimeModeProfiles()
 
-export const DEFAULT_REALTIME_MODE: CortexRealtimeMode = 'premium_voice'
+export const DEFAULT_REALTIME_MODE: CortexRealtimeMode = 'neural_voice'
 
 export const DEFAULT_UI_FOCUS: CortexUiFocus = {
   workspace: 'cortex',
@@ -1660,6 +1823,74 @@ export const DEFAULT_FALLBACK_DATA: CortexDashboardSnapshot = {
       updatedAt: '2026-04-27T07:58:00.000Z',
       accent: 'amber',
     },
+    {
+      id: 'workflow-restaurant-food-edit-variations',
+      title: 'Restaurant Food Edit Variations',
+      description:
+        'Generates five approved restaurant product-shot variations from the Food Edits Google Drive folder while preserving the original plated dish, then uploads accepted results into the Generated Edits subfolder for review.',
+      toolsUsed: [
+        'Google Drive',
+        'Google Workspace OAuth',
+        'Codex gpt-image-2 edit mode',
+        'Vision verification',
+        'Cron automation',
+      ],
+      architecture:
+        'A daily 9PM cron run selects the next source image from the Food Edits Google Drive folder, downloads it locally, creates a preservation-first hero-overhead-daylight baseline plus four additional shot profiles (three-quarter-cinematic, close-detail-appetite, tableside-context-wide, and low-angle-editorial), verifies each candidate against the original plate and plating layout with a score threshold of 85, and uploads only approved variants into the Generated Edits subfolder while posting status back to the Cortex thread.',
+      diagramSource: {
+        path: 'fixtures/workflow-assets/workflow-restaurant-food-edit-variations/restaurant-food-edit-variations.excalidraw',
+        fileName: 'restaurant-food-edit-variations.excalidraw',
+        mimeType: 'application/vnd.excalidraw+json',
+        sizeBytes: 3252,
+        uploadedAt: '2026-04-27T23:20:00.000Z',
+      },
+      diagramPreview: {
+        path: 'fixtures/workflow-assets/workflow-restaurant-food-edit-variations/restaurant-food-edit-variations-preview.svg',
+        fileName: 'restaurant-food-edit-variations-preview.svg',
+        mimeType: 'image/svg+xml',
+        sizeBytes: 3613,
+        uploadedAt: '2026-04-27T23:20:00.000Z',
+        previewUrl:
+          'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3NjAgNDIwIj4KICA8cmVjdCB3aWR0aD0iNzYwIiBoZWlnaHQ9IjQyMCIgcng9IjMwIiBmaWxsPSIjMDcwZDFhIiAvPgogIDxyZWN0IHg9IjQ0IiB5PSI1OCIgd2lkdGg9IjE1MCIgaGVpZ2h0PSI3NCIgcng9IjE4IiBmaWxsPSIjMTIyODNkIiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KICA8cmVjdCB4PSIyMzYiIHk9IjU4IiB3aWR0aD0iMTUwIiBoZWlnaHQ9Ijc0IiByeD0iMTgiIGZpbGw9IiMxODI5MjkiIHN0cm9rZT0iIzhiZmY4YSIgc3Ryb2tlLXdpZHRoPSIzIiAvPgogIDxyZWN0IHg9IjQyOCIgeT0iNTgiIHdpZHRoPSIxNTAiIGhlaWdodD0iNzQiIHJ4PSIxOCIgZmlsbD0iIzI3MTczZCIgc3Ryb2tlPSIjZGQ2ZmZmIiBzdHJva2Utd2lkdGg9IjMiIC8+CiAgPHJlY3QgeD0iMjM2IiB5PSIxNzYiIHdpZHRoPSIxNTAiIGhlaWdodD0iNzQiIHJ4PSIxOCIgZmlsbD0iIzM3MjExOCIgc3Ryb2tlPSIjZmZjODZmIiBzdHJva2Utd2lkdGg9IjMiIC8+CiAgPHJlY3QgeD0iNDI4IiB5PSIxNzYiIHdpZHRoPSIxNTAiIGhlaWdodD0iNzQiIHJ4PSIxOCIgZmlsbD0iIzE4MjkyOSIgc3Ryb2tlPSIjOGJmZjhhIiBzdHJva2Utd2lkdGg9IjMiIC8+CiAgPHJlY3QgeD0iNjIwIiB5PSIxNzYiIHdpZHRoPSI5NiIgaGVpZ2h0PSI3NCIgcng9IjE4IiBmaWxsPSIjMTIyODNkIiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KICA8cmVjdCB4PSIzMzIiIHk9IjMwMiIgd2lkdGg9IjE1MCIgaGVpZ2h0PSI3NCIgcng9IjE4IiBmaWxsPSIjMjcxNzNkIiBzdHJva2U9IiNkZDZmZmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KCiAgPHRleHQgeD0iMTE5IiB5PSIxMDMiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Rm9vZCBFZGl0czwvdGV4dD4KICA8dGV4dCB4PSIxMTkiIHk9IjEyMyIgZmlsbD0iIzlmZDVlNSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Ecml2ZSBTb3VyY2U8L3RleHQ+CgogIDx0ZXh0IHg9IjMxMSIgeT0iMTAzIiBmaWxsPSIjZWRmOGZmIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTciIHRleHQtYW5jaG9yPSJtaWRkbGUiPkNvZGV4IEVkaXQ8L3RleHQ+CiAgPHRleHQgeD0iMzExIiB5PSIxMjMiIGZpbGw9IiNiNGY3YjMiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UHJlc2VydmUgUGxhdGU8L3RleHQ+CgogIDx0ZXh0IHg9IjUwMyIgeT0iOTUiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Rml2ZSBTaG90IFByb2ZpbGVzPC90ZXh0PgogIDx0ZXh0IHg9IjUwMyIgeT0iMTE0IiBmaWxsPSIjZjRiOGZmIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmhlcm8gLyAzLXF1YXJ0ZXIgLyBjbG9zZTwvdGV4dD4KICA8dGV4dCB4PSI1MDMiIHk9IjEyOSIgZmlsbD0iI2Y0YjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjExIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj53aWRlIC8gbG93LWFuZ2xlPC90ZXh0PgoKICA8dGV4dCB4PSIzMTEiIHk9IjIxNCIgZmlsbD0iI2VkZjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5WaXNpb24gUmV2aWV3PC90ZXh0PgogIDx0ZXh0IHg9IjMxMSIgeT0iMjM0IiBmaWxsPSIjZmZkNzllIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPnNjb3JlIOKJpSA4NTwvdGV4dD4KCiAgPHRleHQgeD0iNTAzIiB5PSIyMTQiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+R2VuZXJhdGVkIEVkaXRzPC90ZXh0PgogIDx0ZXh0IHg9IjUwMyIgeT0iMjM0IiBmaWxsPSIjYjRmN2IzIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPnN1YmZvbGRlciB1cGxvYWQ8L3RleHQ+CgogIDx0ZXh0IHg9IjY2OCIgeT0iMjE0IiBmaWxsPSIjZWRmOGZmIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjkgUE08L3RleHQ+CiAgPHRleHQgeD0iNjY4IiB5PSIyMzIiIGZpbGw9IiM5ZmQ1ZTUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+ZGFpbHkgY3JvbjwvdGV4dD4KCiAgPHRleHQgeD0iNDA3IiB5PSIzNDYiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Q29ydGV4IFRocmVhZDwvdGV4dD4KICA8dGV4dCB4PSI0MDciIHk9IjM2NiIgZmlsbD0iI2Y0YjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5zdGF0dXMgKyBsaW5rczwvdGV4dD4KCiAgPHBhdGggZD0iTTE5NCA5NWg0MiIgc3Ryb2tlPSIjNjdmNGZmIiBzdHJva2Utd2lkdGg9IjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgLz4KICA8cGF0aCBkPSJNMzg2IDk1aDQyIiBzdHJva2U9IiM4YmZmOGEiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik0zMTEgMTMydjQ0IiBzdHJva2U9IiNmZmM4NmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik0zODYgMjE0aDQyIiBzdHJva2U9IiNmZmM4NmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik01NzggMjE0aDQyIiBzdHJva2U9IiM4YmZmOGEiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik01MDMgMjUwdjUyaC05NiIgc3Ryb2tlPSIjZGQ2ZmZmIiBzdHJva2Utd2lkdGg9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgLz4KICA8Y2lyY2xlIGN4PSIyMzYiIGN5PSI5NSIgcj0iNiIgZmlsbD0iIzY3ZjRmZiIgLz4KICA8Y2lyY2xlIGN4PSI0MjgiIGN5PSI5NSIgcj0iNiIgZmlsbD0iIzhiZmY4YSIgLz4KICA8Y2lyY2xlIGN4PSIzMTEiIGN5PSIxNzYiIHI9IjYiIGZpbGw9IiNmZmM4NmYiIC8+CiAgPGNpcmNsZSBjeD0iNDI4IiBjeT0iMjE0IiByPSI2IiBmaWxsPSIjZmZjODZmIiAvPgogIDxjaXJjbGUgY3g9IjYyMCIgY3k9IjIxNCIgcj0iNiIgZmlsbD0iIzhiZmY4YSIgLz4KPC9zdmc+Cg==',
+      },
+      zipAsset: null,
+      updatedAt: '2026-04-27T23:20:00.000Z',
+      accent: 'green',
+    },
+    {
+      id: 'workflow-higgsfield-mcp-device-auth',
+      title: 'Higgsfield MCP Device-Auth Setup',
+      description:
+        "Connects Cortex to Higgsfield's remote MCP through device-flow auth, persists a bearer for native HTTP MCP calls, then verifies live workspace, model, media, and generation-history tools while capturing the current blocker: the account is authenticated but sitting at 0 credits on the free plan.",
+      toolsUsed: [
+        'Higgsfield MCP',
+        'Device-flow OAuth',
+        'Native HTTP MCP',
+        'HIGGSFIELD_MCP_TOKEN',
+        'Workspace and generation probes',
+      ],
+      architecture:
+        "Higgsfield's protected-resource metadata points Hermes-class clients to fnf-device-auth.higgsfield.ai instead of a clean standard OAuth discovery doc, so the workflow starts by requesting a device code from /authorize, sending the operator to the Higgsfield verification URI, polling /token until approval lands, and writing the returned bearer into Cortex as HIGGSFIELD_MCP_TOKEN. Cortex then calls the remote MCP endpoint at https://mcp.higgsfield.ai/mcp with an Authorization header through native HTTP MCP wiring and confirms usability by hitting balance, workspace, model, preset, history, and media tools. Current verified context: the connection is live as zaidekthecreator@gmail.com with a private workspace present, but the account is on the free plan with 0 credits, so browsing and management actions work while fresh paid generations remain blocked until credits are added; persistent local config wiring should also be cleaned up because the live connection is working even though the expected Cortex config/.env entries were not obvious on disk.",
+      diagramSource: {
+        path: 'fixtures/workflow-assets/workflow-higgsfield-mcp-device-auth/higgsfield-mcp-device-auth.excalidraw',
+        fileName: 'higgsfield-mcp-device-auth.excalidraw',
+        mimeType: 'application/vnd.excalidraw+json',
+        sizeBytes: 11341,
+        uploadedAt: '2026-04-29T05:42:11.000Z',
+      },
+      diagramPreview: {
+        path: 'fixtures/workflow-assets/workflow-higgsfield-mcp-device-auth/higgsfield-mcp-device-auth-preview.svg',
+        fileName: 'higgsfield-mcp-device-auth-preview.svg',
+        mimeType: 'image/svg+xml',
+        sizeBytes: 5181,
+        uploadedAt: '2026-04-29T05:42:11.000Z',
+        previewUrl:
+          'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5ODAgNTQwIj4KICA8cmVjdCB3aWR0aD0iOTgwIiBoZWlnaHQ9IjU0MCIgcng9IjMwIiBmaWxsPSIjMDcwZDFhIiAvPgogIDxyZWN0IHg9IjQyIiB5PSI1NiIgd2lkdGg9IjIxMiIgaGVpZ2h0PSI5MCIgcng9IjE4IiBmaWxsPSIjMTIyODNkIiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KICA8cmVjdCB4PSIyOTgiIHk9IjU2IiB3aWR0aD0iMjIyIiBoZWlnaHQ9IjExMCIgcng9IjE4IiBmaWxsPSIjMjcxNzNkIiBzdHJva2U9IiNkZDZmZmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KICA8cmVjdCB4PSI1NzAiIHk9IjU2IiB3aWR0aD0iMjEwIiBoZWlnaHQ9Ijk2IiByeD0iMTgiIGZpbGw9IiMxODI5MjkiIHN0cm9rZT0iIzhiZmY4YSIgc3Ryb2tlLXdpZHRoPSIzIiAvPgogIDxyZWN0IHg9Ijc5OCIgeT0iNTYiIHdpZHRoPSIxNDIiIGhlaWdodD0iOTYiIHJ4PSIxOCIgZmlsbD0iIzM3MjExOCIgc3Ryb2tlPSIjZmZjODZmIiBzdHJva2Utd2lkdGg9IjMiIC8+CiAgPHJlY3QgeD0iMjQ2IiB5PSIyMjQiIHdpZHRoPSIzMDAiIGhlaWdodD0iMTA0IiByeD0iMTgiIGZpbGw9IiMxMjI4M2QiIHN0cm9rZT0iIzY3ZjRmZiIgc3Ryb2tlLXdpZHRoPSIzIiAvPgogIDxyZWN0IHg9IjU4NCIgeT0iMjI0IiB3aWR0aD0iMzE2IiBoZWlnaHQ9IjExNiIgcng9IjE4IiBmaWxsPSIjMzcyMTE4IiBzdHJva2U9IiNmZmM4NmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KICA8cmVjdCB4PSIzMjAiIHk9IjM5MiIgd2lkdGg9IjM2NCIgaGVpZ2h0PSIxMDIiIHJ4PSIxOCIgZmlsbD0iIzI3MTczZCIgc3Ryb2tlPSIjZGQ2ZmZmIiBzdHJva2Utd2lkdGg9IjMiIC8+CgogIDx0ZXh0IHg9IjE0OCIgeT0iOTIiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UHJvdGVjdGVkIFJlc291cmNlPC90ZXh0PgogIDx0ZXh0IHg9IjE0OCIgeT0iMTEyIiBmaWxsPSIjOWZkNWU1IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPm1jcC5oaWdnc2ZpZWxkLmFpIG1ldGFkYXRhPC90ZXh0PgogIDx0ZXh0IHg9IjE0OCIgeT0iMTMwIiBmaWxsPSIjOWZkNWU1IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPnBvaW50cyBIZXJtZXMtY2xhc3MgY2xpZW50czwvdGV4dD4KCiAgPHRleHQgeD0iNDA5IiB5PSI5MCIgZmlsbD0iI2VkZjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5EZXZpY2UgRmxvdyBBdXRoPC90ZXh0PgogIDx0ZXh0IHg9IjQwOSIgeT0iMTEwIiBmaWxsPSIjZjRiOGZmIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBPU1QgL2F1dGhvcml6ZSDihpIgdmVyaWZpY2F0aW9uIFVSSTwvdGV4dD4KICA8dGV4dCB4PSI0MDkiIHk9IjEyOCIgZmlsbD0iI2Y0YjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5wb2xsIC90b2tlbiB1bnRpbCBhcHByb3ZhbCBsYW5kczwvdGV4dD4KICA8dGV4dCB4PSI0MDkiIHk9IjE0NiIgZmlsbD0iI2Y0YjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5mbmYtZGV2aWNlLWF1dGguaGlnZ3NmaWVsZC5haTwvdGV4dD4KCiAgPHRleHQgeD0iNjc1IiB5PSI5MiIgZmlsbD0iI2VkZjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Ub2tlbiBJbiBDb3J0ZXg8L3RleHQ+CiAgPHRleHQgeD0iNjc1IiB5PSIxMTIiIGZpbGw9IiNiNGY3YjMiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+cGVyc2lzdCBiZWFyZXIgYXM8L3RleHQ+CiAgPHRleHQgeD0iNjc1IiB5PSIxMzAiIGZpbGw9IiNiNGY3YjMiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SElHR1NGSUVMRF9NQ1BfVE9LRU48L3RleHQ+CgogIDx0ZXh0IHg9Ijg2OSIgeT0iOTIiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TmF0aXZlIE1DUDwvdGV4dD4KICA8dGV4dCB4PSI4NjkiIHk9IjExMiIgZmlsbD0iI2ZmZDc5ZSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5IVFRQICsgQmVhcmVyPC90ZXh0PgogIDx0ZXh0IHg9Ijg2OSIgeT0iMTMwIiBmaWxsPSIjZmZkNzllIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmhlYWRlciBhdXRoPC90ZXh0PgoKICA8dGV4dCB4PSIzOTYiIHk9IjI2MCIgZmlsbD0iI2VkZjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5MaXZlIFRvb2wgVmVyaWZpY2F0aW9uPC90ZXh0PgogIDx0ZXh0IHg9IjM5NiIgeT0iMjgwIiBmaWxsPSIjOWZkNWU1IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmJhbGFuY2UgLyBsaXN0X3dvcmtzcGFjZXMgLyBtb2RlbHNfZXhwbG9yZTwvdGV4dD4KICA8dGV4dCB4PSIzOTYiIHk9IjI5OCIgZmlsbD0iIzlmZDVlNSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5zaG93X21hcmtldGluZ19zdHVkaW8gLyBzaG93X2dlbmVyYXRpb25zIC8gc2hvd19tZWRpYXM8L3RleHQ+CiAgPHRleHQgeD0iMzk2IiB5PSIzMTYiIGZpbGw9IiM5ZmQ1ZTUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+cHJvdmVzIGF1dGggKyB0b29sIGRpc2NvdmVyeSBhcmUgbGl2ZTwvdGV4dD4KCiAgPHRleHQgeD0iNzQyIiB5PSIyNjAiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Q3VycmVudCBSdW50aW1lIENvbnRleHQ8L3RleHQ+CiAgPHRleHQgeD0iNzQyIiB5PSIyODAiIGZpbGw9IiNmZmQ3OWUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+QWNjb3VudDogemFpZGVrdGhlY3JlYXRvckBnbWFpbC5jb208L3RleHQ+CiAgPHRleHQgeD0iNzQyIiB5PSIyOTgiIGZpbGw9IiNmZmQ3OWUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UGxhbjogZnJlZSAvIENyZWRpdHM6IDAgLyBQcml2YXRlIHdvcmtzcGFjZSBsaXZlPC90ZXh0PgogIDx0ZXh0IHg9Ijc0MiIgeT0iMzE2IiBmaWxsPSIjZmZkNzllIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkJyb3dzaW5nIHdvcmtzOyBuZXcgcGFpZCBnZW5lcmF0aW9ucyBhcmUgYmxvY2tlZDwvdGV4dD4KCiAgPHRleHQgeD0iNTAyIiB5PSI0MzAiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UmVtYWluaW5nIENsZWFudXA8L3RleHQ+CiAgPHRleHQgeD0iNTAyIiB5PSI0NTAiIGZpbGw9IiNmNGI4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TGl2ZSBNQ1AgY29ubmVjdGlvbiB3b3JrcywgYnV0IHRoZSBleHBlY3RlZCBDb3J0ZXggY29uZmlnLy5lbnY8L3RleHQ+CiAgPHRleHQgeD0iNTAyIiB5PSI0NjgiIGZpbGw9IiNmNGI4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+d2lyaW5nIHdhcyBub3Qgb2J2aW91cyBvbiBkaXNrLCBzbyBwZXJzaXN0ZW5jZSBzaG91bGQgYmUgY2xlYW5lZCB1cC48L3RleHQ+CgogIDxwYXRoIGQ9Ik0yNTQgMTAwaDQ0IiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik01MjAgMTAwaDUwIiBzdHJva2U9IiNkZDZmZmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik03ODAgMTAwaDE4IiBzdHJva2U9IiM4YmZmOGEiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik00MDkgMTY2djU4IiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik01NDYgMjc2aDM4IiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik03NDIgMzQwdjE4SDUwMnYzNCIgc3Ryb2tlPSIjZmZjODZmIiBzdHJva2Utd2lkdGg9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgLz4KICA8Y2lyY2xlIGN4PSIyOTgiIGN5PSIxMDAiIHI9IjYiIGZpbGw9IiM2N2Y0ZmYiIC8+CiAgPGNpcmNsZSBjeD0iNTcwIiBjeT0iMTAwIiByPSI2IiBmaWxsPSIjZGQ2ZmZmIiAvPgogIDxjaXJjbGUgY3g9Ijc5OCIgY3k9IjEwMCIgcj0iNiIgZmlsbD0iIzhiZmY4YSIgLz4KICA8Y2lyY2xlIGN4PSI0MDkiIGN5PSIyMjQiIHI9IjYiIGZpbGw9IiM2N2Y0ZmYiIC8+CiAgPGNpcmNsZSBjeD0iNTg0IiBjeT0iMjc2IiByPSI2IiBmaWxsPSIjNjdmNGZmIiAvPgo8L3N2Zz4K',
+      },
+      zipAsset: null,
+      updatedAt: '2026-04-29T05:42:11.000Z',
+      accent: 'magenta',
+    }
   ],
   drops: [
     {
@@ -2011,6 +2242,38 @@ export const DEFAULT_FALLBACK_DATA: CortexDashboardSnapshot = {
       readyToShip: 'Type-based content prompts',
       staleReason: 'Type strategy stays directional until connected to live data.',
       accent: 'magenta',
+    },
+  ],
+  usageIndicators: [
+    {
+      id: 'elevenlabs',
+      label: 'ElevenLabs',
+      detail: '87,915 / 90,000 characters remaining this cycle.',
+      symbol: 'E',
+      value: 98,
+      tone: 'magenta',
+      source: 'fallback',
+      refreshedAt: '2026-04-27T08:30:00.000Z',
+    },
+    {
+      id: 'codex_session',
+      label: 'Codex Session',
+      detail: '90% remaining in the current Codex window.',
+      symbol: 'S',
+      value: 90,
+      tone: 'cyan',
+      source: 'fallback',
+      refreshedAt: '2026-04-27T08:30:00.000Z',
+    },
+    {
+      id: 'codex_weekly',
+      label: 'Codex Weekly',
+      detail: '95% remaining in the weekly Codex window.',
+      symbol: 'W',
+      value: 95,
+      tone: 'green',
+      source: 'fallback',
+      refreshedAt: '2026-04-27T08:30:00.000Z',
     },
   ],
   commands: [

@@ -5,9 +5,24 @@ import { useCortex } from '@/hooks/useCortex'
 import { DEFAULT_GATEWAY_STATE } from '@/shared/cortex'
 
 export const OverviewPage = () => {
-  const { realtime, setViewContext, snapshot, toggleRealtimeVoice, uiMode } = useCortex()
+  const { businessSnapshot, realtime, setViewContext, snapshot, toggleRealtimeVoice, uiMode } = useCortex()
 
   useEffect(() => {
+    if (uiMode === 'business') {
+      if (!businessSnapshot) {
+        return
+      }
+
+      setViewContext({
+        details: {
+          relationships: businessSnapshot.relationships.length,
+          queueItems: businessSnapshot.queue.length,
+          sections: businessSnapshot.sections.length,
+        },
+      })
+      return
+    }
+
     if (!snapshot) {
       return
     }
@@ -26,6 +41,7 @@ export const OverviewPage = () => {
       },
     })
   }, [
+    businessSnapshot,
     setViewContext,
     snapshot,
     snapshot?.gateway?.processName,
@@ -33,7 +49,26 @@ export const OverviewPage = () => {
     snapshot?.system.activeNodes,
     snapshot?.system.neuralLoad,
     snapshot?.system.signalCoherence,
+    uiMode,
   ])
+
+  if (uiMode === 'business') {
+    if (!businessSnapshot) {
+      return null
+    }
+
+    return (
+      <div className="overview-brain-only">
+        <div className="overview-center-stage">
+          <NeurobrainVoiceControl
+            onToggle={toggleRealtimeVoice}
+            realtimeState={realtime}
+            uiMode={uiMode}
+          />
+        </div>
+      </div>
+    )
+  }
 
   if (!snapshot) {
     return null

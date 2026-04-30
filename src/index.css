@@ -805,13 +805,17 @@ a {
 }
 
 .overview-top-layer {
-  position: relative;
+  position: absolute;
+  inset: 0 0 auto;
   width: 100%;
-  padding-top: 0.08rem;
+  height: 0;
+  padding-top: 0;
   z-index: 2;
+  pointer-events: none;
 }
 
 .overview-top-rail {
+  position: relative;
   width: 100%;
   display: flex;
   align-items: flex-start;
@@ -832,6 +836,9 @@ a {
 .overview-top-slot-usage {
   justify-content: flex-end;
   margin-left: auto;
+  position: absolute;
+  top: 0.14rem;
+  right: 1.1rem;
 }
 
 .overview-center-stage {
@@ -847,7 +854,6 @@ a {
 .overview-top-rail,
 .overview-top-slot,
 .overview-center-stage .core-mind,
-.overview-status-strip,
 .overview-usage-rings,
 .gateway-chip {
   pointer-events: auto;
@@ -857,31 +863,18 @@ a {
   width: min(86vmin, 500px);
 }
 
-.overview-status-strip {
-  position: relative;
-  width: auto;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  z-index: 2;
-}
-
 .overview-usage-rings {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.26rem;
-  padding: 0.24rem 0.34rem;
-  border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(220, 240, 255, 0.08), rgba(8, 12, 18, 0.12)),
-    rgba(8, 12, 18, 0.08);
-  border: 1px solid rgba(214, 239, 255, 0.12);
-  backdrop-filter: blur(26px);
-  -webkit-backdrop-filter: blur(26px);
-  box-shadow:
-    0 10px 28px rgba(0, 0, 0, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  gap: 0.12rem;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 
 .usage-ring {
@@ -2626,11 +2619,16 @@ a {
   color: rgba(20, 24, 29, 0.62);
 }
 
-.app-shell[data-mode='business'] .overview-usage-rings,
 .app-shell[data-mode='business'] .gateway-chip {
   background: #ffffff;
   border: 3px solid #111111;
   box-shadow: 5px 5px 0 rgba(17, 17, 17, 0.92);
+}
+
+.app-shell[data-mode='business'] .overview-usage-rings {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .app-shell[data-mode='business'] .gateway-chip-label,
@@ -3320,14 +3318,14 @@ a {
     margin-left: 0;
   }
 
-  .overview-status-strip {
-    width: 100%;
+  .overview-top-slot-usage {
+    position: static;
     justify-content: flex-start;
   }
 
   .overview-usage-rings {
     gap: 0.18rem;
-    padding: 0.18rem 0.22rem;
+    padding: 0;
   }
 
   .usage-ring {
@@ -3373,7 +3371,7 @@ a {
     gap: 0.18rem;
   }
 
-  .overview-status-strip {
+  .overview-usage-rings {
     gap: 0.14rem;
   }
 }
@@ -4793,8 +4791,8 @@ a {
 
 .overview-usage-rings {
   gap: 0.16rem;
-  padding: 0.16rem 0.2rem;
-  background: linear-gradient(180deg, rgba(10, 18, 34, 0.32), rgba(8, 15, 28, 0.2));
+  padding: 0;
+  background: transparent;
 }
 
 .usage-ring {
@@ -6915,6 +6913,1163 @@ a {
   letter-spacing: 0.08em;
 }
 
+/* Light-mode ZiBz hierarchy pass: analog hi-fi controls, meaningful cards, targeted state color. */
+.app-shell[data-mode='business'] .zibz-index-page {
+  --zibz-accent: #159b99;
+  --zibz-accent-soft: rgba(39, 205, 202, 0.22);
+  --zibz-line: #aebccb;
+  --zibz-line-strong: #7faead;
+  --zibz-surface: #eef3f8;
+  --zibz-surface-high: #f7f9fc;
+  --zibz-surface-low: #dfe7f1;
+  --zibz-text: #222838;
+  --zibz-muted: #7b8493;
+  --zibz-shadow: rgba(55, 68, 98, 0.3);
+}
+
+.app-shell[data-mode='business'] .zibz-index-page .minimal-panel {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.72), transparent 22%),
+    linear-gradient(145deg, #f1f5f9, #e8eef6);
+}
+
+.app-shell[data-mode='business'] .zibz-index-shell {
+  gap: 1.2rem;
+}
+
+.app-shell[data-mode='business'] .zibz-index-intro {
+  align-items: stretch;
+  gap: 1.05rem;
+}
+
+.app-shell[data-mode='business'] .zibz-index-copy {
+  align-content: center;
+  gap: 0.55rem;
+  padding: 0.75rem 0.2rem 0.75rem 0;
+}
+
+.app-shell[data-mode='business'] .zibz-index-kicker,
+.app-shell[data-mode='business'] .zibz-role-band-button .zibz-tab-copy small,
+.app-shell[data-mode='business'] .zibz-workspace-nav-top .surface-label,
+.app-shell[data-mode='business'] .zibz-display-caption .surface-label {
+  color: var(--zibz-muted);
+  letter-spacing: 0.18em;
+}
+
+.app-shell[data-mode='business'] .zibz-index-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+  width: fit-content;
+  padding: 0.46rem 0.7rem;
+  border: 2px solid var(--zibz-line);
+  outline: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 13px;
+  background: #e9f0f7;
+  box-shadow:
+    inset 4px 4px 8px rgba(80, 96, 126, 0.13),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.88);
+}
+
+.app-shell[data-mode='business'] .zibz-index-copy h3 {
+  max-width: 47rem;
+  color: var(--zibz-text);
+  font-size: clamp(1.08rem, 1.7vw, 1.42rem);
+  line-height: 1.36;
+}
+
+.app-shell[data-mode='business'] .zibz-index-copy p {
+  max-width: 44rem;
+  color: var(--zibz-muted);
+  font-size: 0.76rem;
+}
+
+.app-shell[data-mode='business'] .zibz-index-stats {
+  align-self: stretch;
+  gap: 0.7rem;
+}
+
+.app-shell[data-mode='business'] .zibz-index-stats > .zibz-stat-card {
+  min-height: 5.9rem;
+  align-content: center;
+  gap: 0.24rem;
+  padding: 0.92rem 0.98rem;
+  border-radius: 18px;
+  border-color: var(--zibz-line);
+  background: var(--zibz-surface-high);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.8),
+    0 0 0 4px rgba(84, 100, 130, 0.12),
+    16px 20px 34px rgba(65, 78, 108, 0.22),
+    -9px -9px 22px rgba(255, 255, 255, 0.94),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.82),
+    inset -2px -2px 0 rgba(84, 100, 130, 0.16);
+}
+
+.app-shell[data-mode='business'] .zibz-stat-card span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  color: var(--zibz-muted);
+}
+
+.app-shell[data-mode='business'] .zibz-stat-card span i {
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 999px;
+  background: #9aa5b5;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.72),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.app-shell[data-mode='business'] .zibz-stat-card.is-live span i,
+.app-shell[data-mode='business'] .zibz-stat-card.is-open span i {
+  background: var(--zibz-accent);
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.76),
+    0 0 18px rgba(39, 205, 202, 0.34),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+.app-shell[data-mode='business'] .zibz-stat-card.is-locked span i {
+  background: #9ba3b0;
+}
+
+.app-shell[data-mode='business'] .zibz-index-stats strong {
+  color: var(--zibz-text);
+  font-size: 0.98rem;
+}
+
+.app-shell[data-mode='business'] .zibz-stat-card small {
+  color: var(--zibz-muted);
+  font-size: 0.63rem;
+  line-height: 1.35;
+}
+
+.app-shell[data-mode='business'] .zibz-role-band {
+  gap: 0.52rem;
+  padding: 0.7rem;
+  border-radius: 24px;
+  border-color: var(--zibz-line);
+  background:
+    linear-gradient(145deg, #e6edf5, #f2f6fa),
+    repeating-linear-gradient(90deg, transparent 0 18px, rgba(77, 92, 122, 0.035) 18px 19px);
+  box-shadow:
+    inset 8px 8px 16px rgba(78, 94, 124, 0.13),
+    inset -8px -8px 16px rgba(255, 255, 255, 0.9),
+    0 0 0 2px rgba(255, 255, 255, 0.66);
+}
+
+.app-shell[data-mode='business'] .zibz-role-band-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.58rem;
+  min-width: 12rem;
+  padding: 0.72rem 0.76rem;
+  border-radius: 16px;
+  border-color: #b8c4d2;
+  background: #edf2f8;
+  color: var(--zibz-text);
+  box-shadow:
+    8px 9px 15px rgba(65, 78, 108, 0.14),
+    -5px -5px 13px rgba(255, 255, 255, 0.86),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.7),
+    inset -2px -2px 0 rgba(84, 100, 130, 0.12);
+}
+
+.app-shell[data-mode='business'] .zibz-role-band-button::before {
+  inset: 6px;
+  border: 1px solid rgba(88, 104, 135, 0.18);
+  border-radius: inherit;
+  background: transparent;
+  opacity: 1;
+  box-shadow:
+    inset 1px 1px 3px rgba(73, 88, 118, 0.1),
+    inset -1px -1px 3px rgba(255, 255, 255, 0.84);
+}
+
+.app-shell[data-mode='business'] .zibz-role-band-button:hover {
+  transform: translateY(-2px);
+  border-color: var(--zibz-line-strong);
+}
+
+.app-shell[data-mode='business'] .zibz-role-band-button.is-active {
+  transform: translateY(1px);
+  border-color: var(--zibz-line-strong);
+  background: #dff3f2;
+  box-shadow:
+    inset 8px 8px 14px rgba(54, 126, 137, 0.16),
+    inset -7px -7px 14px rgba(255, 255, 255, 0.84),
+    0 0 0 2px rgba(255, 255, 255, 0.68),
+    0 0 0 5px rgba(39, 205, 202, 0.15);
+}
+
+.app-shell[data-mode='business'] .zibz-role-band-button .zibz-tab-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.app-shell[data-mode='business'] .zibz-role-band-button .zibz-tab-copy strong {
+  overflow: hidden;
+  color: var(--zibz-text);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.app-shell[data-mode='business'] .zibz-role-band-button .zibz-tab-copy small {
+  overflow: hidden;
+  font-size: 0.52rem;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.app-shell[data-mode='business'] .zibz-tab-icon,
+.app-shell[data-mode='business'] .zibz-mini-icon {
+  position: relative;
+  z-index: 1;
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 1.82rem;
+  height: 1.82rem;
+  place-items: center;
+  border: 2px solid #b7c3d1;
+  outline: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  background: #edf2f8;
+  box-shadow:
+    6px 7px 12px rgba(65, 78, 108, 0.16),
+    -4px -4px 10px rgba(255, 255, 255, 0.92),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.76),
+    inset -1px -1px 0 rgba(84, 100, 130, 0.14);
+}
+
+.app-shell[data-mode='business'] .zibz-mini-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 10px;
+}
+
+.app-shell[data-mode='business'] .zibz-tab-icon::before,
+.app-shell[data-mode='business'] .zibz-mini-icon::before {
+  content: '';
+  width: 0.72rem;
+  height: 0.72rem;
+  border: 2px solid var(--zibz-accent);
+  border-radius: 999px;
+  box-shadow: 0 0 11px rgba(39, 205, 202, 0.26);
+}
+
+.app-shell[data-mode='business'] .zibz-tab-icon[data-icon='ops']::before,
+.app-shell[data-mode='business'] .zibz-mini-icon[data-icon='ops']::before {
+  border-radius: 4px;
+}
+
+.app-shell[data-mode='business'] .zibz-tab-icon[data-icon='intel']::before,
+.app-shell[data-mode='business'] .zibz-mini-icon[data-icon='intel']::before {
+  width: 0.34rem;
+  height: 0.34rem;
+  border-width: 3px;
+  box-shadow:
+    0 0 0 4px rgba(39, 205, 202, 0.16),
+    0 0 11px rgba(39, 205, 202, 0.28);
+}
+
+.app-shell[data-mode='business'] .zibz-tab-icon[data-icon='creative']::before,
+.app-shell[data-mode='business'] .zibz-mini-icon[data-icon='creative']::before {
+  border-color: #b66fd7;
+  border-radius: 4px 999px 999px 4px;
+}
+
+.app-shell[data-mode='business'] .zibz-tab-icon[data-icon='systems']::before,
+.app-shell[data-mode='business'] .zibz-mini-icon[data-icon='systems']::before {
+  border-radius: 4px;
+  transform: rotate(45deg);
+}
+
+.app-shell[data-mode='business'] .zibz-tab-icon[data-icon='risk']::before,
+.app-shell[data-mode='business'] .zibz-mini-icon[data-icon='risk']::before {
+  width: 0.78rem;
+  height: 0.52rem;
+  border-color: #8e98a8;
+  border-radius: 0.22rem;
+}
+
+.app-shell[data-mode='business'] .zibz-micro-chip {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  min-width: max-content;
+  padding: 0.28rem 0.48rem;
+  border: 1px solid rgba(126, 143, 172, 0.38);
+  border-radius: 9px;
+  background: #e9eff6;
+  color: #687384;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow:
+    inset 2px 2px 4px rgba(84, 100, 130, 0.09),
+    inset -2px -2px 4px rgba(255, 255, 255, 0.84);
+}
+
+.app-shell[data-mode='business'] .zibz-micro-chip::before {
+  content: '';
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.72;
+}
+
+.app-shell[data-mode='business'] .zibz-micro-chip.is-active,
+.app-shell[data-mode='business'] .zibz-micro-chip.is-ready,
+.app-shell[data-mode='business'] .zibz-micro-chip.is-live,
+.app-shell[data-mode='business'] .zibz-micro-chip.is-synced {
+  border-color: rgba(39, 205, 202, 0.48);
+  background: #dff3f2;
+  color: #0b8f8d;
+}
+
+.app-shell[data-mode='business'] .zibz-micro-chip.is-queueing {
+  border-color: rgba(172, 122, 215, 0.4);
+  background: #ece5f7;
+  color: #7b54aa;
+}
+
+.app-shell[data-mode='business'] .zibz-micro-chip.is-idle,
+.app-shell[data-mode='business'] .zibz-micro-chip.is-locked {
+  color: #848d9b;
+}
+
+.app-shell[data-mode='business'] .zibz-selector-stage {
+  grid-template-columns: minmax(21rem, 1.06fr) minmax(23rem, 1fr);
+  gap: 1rem;
+}
+
+.app-shell[data-mode='business'] .zibz-display-stage {
+  gap: 0.95rem;
+}
+
+.app-shell[data-mode='business'] .zibz-display-frame {
+  min-height: 30rem;
+  border-radius: 30px;
+  border-color: var(--zibz-line);
+  background:
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.7), transparent 22%),
+    linear-gradient(145deg, #eef3f8, #e2eaf4);
+}
+
+.app-shell[data-mode='business'] .zibz-display-frame::before {
+  inset: 10px;
+  border-color: rgba(88, 104, 135, 0.2);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 18px, rgba(77, 92, 122, 0.028) 18px 19px),
+    repeating-linear-gradient(180deg, transparent 0 18px, rgba(255, 255, 255, 0.32) 18px 19px);
+}
+
+.app-shell[data-mode='business'] .zibz-display-stage.is-ready .zibz-display-frame {
+  border-color: var(--zibz-line-strong);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.84),
+    0 0 0 5px var(--zibz-accent-soft),
+    26px 32px 52px rgba(44, 73, 94, 0.3),
+    -12px -12px 28px rgba(255, 255, 255, 0.94),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.84),
+    inset -2px -2px 0 rgba(84, 100, 130, 0.18);
+}
+
+.app-shell[data-mode='business'] .zibz-display-empty {
+  gap: 0.52rem;
+}
+
+.app-shell[data-mode='business'] .zibz-empty-schematic {
+  display: grid;
+  grid-template-columns: 1.3fr 0.8fr;
+  gap: 0.46rem;
+  width: min(14rem, 72%);
+  margin: 0 auto 0.4rem;
+  padding: 0.62rem;
+  border: 2px solid #c3ceda;
+  outline: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 18px;
+  background: #e8eff7;
+  opacity: 0.86;
+  box-shadow:
+    inset 6px 6px 12px rgba(83, 99, 130, 0.12),
+    inset -6px -6px 12px rgba(255, 255, 255, 0.82);
+}
+
+.app-shell[data-mode='business'] .zibz-empty-schematic span {
+  display: block;
+  min-height: 2.3rem;
+  border-radius: 10px;
+  border: 1px solid rgba(126, 143, 172, 0.32);
+  background: rgba(245, 248, 252, 0.62);
+  box-shadow:
+    inset 3px 3px 6px rgba(84, 100, 130, 0.08),
+    inset -3px -3px 6px rgba(255, 255, 255, 0.76);
+}
+
+.app-shell[data-mode='business'] .zibz-empty-schematic span:first-child {
+  grid-row: span 2;
+}
+
+.app-shell[data-mode='business'] .zibz-display-empty-mark,
+.app-shell[data-mode='business'] .zibz-rail-chip {
+  color: #0d8684;
+}
+
+.app-shell[data-mode='business'] .zibz-display-tag {
+  left: 1.1rem;
+  right: 1.1rem;
+  bottom: 1.1rem;
+  transform: none;
+  min-width: 0;
+  gap: 0.2rem;
+  justify-items: start;
+  padding: 0.84rem 0.95rem;
+  border-radius: 19px;
+  text-align: left;
+}
+
+.app-shell[data-mode='business'] .zibz-display-tag-meta {
+  display: flex;
+}
+
+.app-shell[data-mode='business'] .zibz-display-tag strong {
+  color: var(--zibz-text);
+  font-size: 0.9rem;
+}
+
+.app-shell[data-mode='business'] .zibz-display-tag > span:not(.zibz-display-tag-meta) {
+  color: var(--zibz-muted);
+}
+
+.app-shell[data-mode='business'] .zibz-caption-row,
+.app-shell[data-mode='business'] .zibz-workspace-nav-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.58rem;
+}
+
+.app-shell[data-mode='business'] .zibz-display-caption {
+  gap: 0.4rem;
+  padding: 0.96rem 1.02rem;
+  border-radius: 20px;
+}
+
+.app-shell[data-mode='business'] .zibz-card-rail {
+  gap: 0.86rem;
+}
+
+.app-shell[data-mode='business'] .zibz-rail-card {
+  min-height: 16.6rem;
+  border-radius: 24px;
+  border-color: var(--zibz-line);
+}
+
+.app-shell[data-mode='business'] .zibz-rail-card-head {
+  position: absolute;
+  top: 0.82rem;
+  left: 0.82rem;
+  right: 0.82rem;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.app-shell[data-mode='business'] .zibz-rail-card-head .zibz-rail-chip {
+  position: static;
+  inset: auto;
+  display: inline-flex;
+  width: fit-content;
+}
+
+.app-shell[data-mode='business'] .zibz-rail-card.is-active {
+  transform: translateY(-4px);
+  border-color: var(--zibz-line-strong);
+  background: #e8f6f5;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.86),
+    0 0 0 6px var(--zibz-accent-soft),
+    28px 34px 54px rgba(38, 83, 101, 0.3),
+    -11px -11px 26px rgba(255, 255, 255, 0.96),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.84),
+    inset -2px -2px 0 rgba(84, 100, 130, 0.18);
+}
+
+.app-shell[data-mode='business'] .zibz-rail-art {
+  padding: 3.1rem 1rem 5.7rem;
+}
+
+.app-shell[data-mode='business'] .zibz-rail-avatar {
+  width: min(55%, 7.6rem);
+  border-radius: 28px;
+}
+
+.app-shell[data-mode='business'] .zibz-rail-avatar span {
+  color: var(--zibz-text);
+}
+
+.app-shell[data-mode='business'] .zibz-rail-tag {
+  left: 0.82rem;
+  right: 0.82rem;
+  bottom: 1.02rem;
+  transform: none;
+  min-width: 0;
+  gap: 0.16rem;
+  padding: 0.78rem 0.84rem 1.03rem;
+  border-radius: 18px;
+  text-align: left;
+}
+
+.app-shell[data-mode='business'] .zibz-rail-tag strong {
+  color: var(--zibz-text);
+  font-size: 0.76rem;
+}
+
+.app-shell[data-mode='business'] .zibz-rail-tag span {
+  color: #687384;
+}
+
+.app-shell[data-mode='business'] .zibz-rail-tag p {
+  display: -webkit-box;
+  margin: 0.24rem 0 0;
+  overflow: hidden;
+  color: var(--zibz-muted);
+  font-size: 0.62rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.app-shell[data-mode='business'] .zibz-readiness-meter {
+  position: absolute;
+  left: 1.22rem;
+  right: 1.22rem;
+  bottom: 0.82rem;
+  z-index: 4;
+  height: 0.34rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #d7e0eb;
+  box-shadow:
+    inset 2px 2px 4px rgba(84, 100, 130, 0.16),
+    inset -2px -2px 4px rgba(255, 255, 255, 0.72);
+}
+
+.app-shell[data-mode='business'] .zibz-readiness-meter span {
+  display: block;
+  width: var(--zib-readiness, 64%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--zibz-accent);
+  box-shadow: 0 0 10px rgba(39, 205, 202, 0.24);
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-shell {
+  gap: 1rem;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-nav {
+  gap: 0.7rem;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-nav-card {
+  gap: 0.42rem;
+  min-height: 6.2rem;
+  padding: 0.88rem 0.92rem;
+  border-radius: 18px;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-nav-card strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+  color: var(--zibz-text);
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-nav-card strong .zibz-mini-icon {
+  width: 1.18rem;
+  height: 1.18rem;
+  border-radius: 8px;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-nav-card strong .zibz-mini-icon::before {
+  width: 0.48rem;
+  height: 0.48rem;
+  border-width: 1px;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-nav-card.is-active {
+  transform: translateY(1px);
+  border-color: var(--zibz-line-strong);
+  background: #e3f3f2;
+  box-shadow:
+    inset 8px 8px 14px rgba(54, 126, 137, 0.14),
+    inset -7px -7px 14px rgba(255, 255, 255, 0.82),
+    0 0 0 2px rgba(255, 255, 255, 0.7),
+    0 0 0 5px rgba(39, 205, 202, 0.13);
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-stage {
+  gap: 0.86rem;
+  padding: 1.05rem;
+  border-radius: 24px;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-head h3 {
+  color: var(--zibz-text);
+  font-size: 1.08rem;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-meta {
+  gap: 0.7rem;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-meta > div {
+  border-radius: 16px;
+  background: #e9f0f7;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-note-grid {
+  gap: 0.74rem;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-note-grid .record-card {
+  min-height: 6.2rem;
+  padding-right: 1rem;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-note-grid .record-card::after {
+  display: none;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-empty {
+  min-height: 15rem;
+  gap: 0.58rem;
+  border-style: solid;
+  border-radius: 24px;
+}
+
+/* ZiBz layout rehaul: matte slab, recessed etches, and floating analog modules. */
+.app-shell[data-mode='business'][data-route='/business/zibz'] {
+  --zibz-page-matte: #d9e1eb;
+  --zibz-page-matte-dark: #cfd8e4;
+  --zibz-panel-matte: #dfe7f1;
+  --zibz-panel-raised: #edf2f8;
+  --zibz-panel-high: #f5f7fa;
+  --zibz-engrave: #9baabb;
+  --zibz-engrave-soft: rgba(87, 103, 134, 0.2);
+  --zibz-cyan: #20c8c6;
+  --zibz-cyan-dark: #0a8f8d;
+  --zibz-cyan-glow: rgba(32, 200, 198, 0.38);
+  --zibz-heavy-shadow: rgba(39, 52, 82, 0.36);
+  --zibz-heavy-shadow-soft: rgba(60, 75, 105, 0.24);
+  background: var(--zibz-page-matte);
+}
+
+.app-shell[data-mode='business'][data-route='/business/zibz'] .page-backdrop-static {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.34), transparent 28%),
+    linear-gradient(180deg, var(--zibz-page-matte), var(--zibz-page-matte-dark));
+}
+
+.app-shell[data-mode='business'][data-route='/business/zibz'] .content-shell {
+  background:
+    linear-gradient(90deg, rgba(92, 109, 141, 0.025) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 22rem);
+  background-size: 28px 28px, auto;
+}
+
+.app-shell[data-mode='business'] .mission-os-grid.zibz-index-page {
+  width: min(100%, 118rem);
+  gap: 1.55rem;
+  padding: 1.65rem;
+  border: 0;
+  outline: 0;
+  border-radius: 34px;
+  background: var(--zibz-page-matte, #d9e1eb);
+  box-shadow:
+    inset 18px 18px 34px rgba(79, 96, 126, 0.13),
+    inset -18px -18px 34px rgba(255, 255, 255, 0.56),
+    0 0 0 1px rgba(255, 255, 255, 0.42);
+}
+
+.app-shell[data-mode='business'] .mission-os-grid.zibz-index-page::before,
+.app-shell[data-mode='business'] .mission-os-grid.zibz-index-page::after {
+  display: none;
+}
+
+.app-shell[data-mode='business'] .zibz-command-panel,
+.app-shell[data-mode='business'] .zibz-workspace-panel {
+  position: relative;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-shell[data-mode='business'] .zibz-command-panel::before,
+.app-shell[data-mode='business'] .zibz-command-panel::after,
+.app-shell[data-mode='business'] .zibz-workspace-panel::before,
+.app-shell[data-mode='business'] .zibz-workspace-panel::after {
+  display: none;
+}
+
+.app-shell[data-mode='business'] .zibz-command-panel > .panel-header,
+.app-shell[data-mode='business'] .zibz-workspace-panel > .panel-header {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1.05rem;
+  border: 2px solid var(--zibz-engrave, #9baabb);
+  outline: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 20px;
+  background: #dce5ef;
+  box-shadow:
+    inset 8px 8px 15px rgba(82, 98, 128, 0.16),
+    inset -8px -8px 15px rgba(255, 255, 255, 0.66),
+    0 0 0 3px rgba(255, 255, 255, 0.28);
+}
+
+.app-shell[data-mode='business'] .zibz-command-panel > .panel-header h2,
+.app-shell[data-mode='business'] .zibz-workspace-panel > .panel-header h2 {
+  color: #1f2634;
+  font-size: 1.05rem;
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab {
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
+  border: 2px solid var(--zibz-engrave, #9baabb);
+  outline: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 32px;
+  background: #dce5ef;
+  box-shadow:
+    inset 12px 12px 24px rgba(76, 92, 122, 0.16),
+    inset -12px -12px 24px rgba(255, 255, 255, 0.66),
+    0 0 0 4px rgba(255, 255, 255, 0.26);
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-index-intro {
+  grid-template-columns: minmax(0, 1.2fr) minmax(21rem, 0.8fr);
+  gap: 1.2rem;
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-index-copy {
+  min-height: 9.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: 24px;
+  background: #d7e0ea;
+  box-shadow:
+    inset 9px 9px 18px rgba(74, 91, 121, 0.13),
+    inset -8px -8px 18px rgba(255, 255, 255, 0.62);
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-index-copy h3 {
+  max-width: 55rem;
+  font-size: clamp(1.32rem, 2.15vw, 2.05rem);
+  line-height: 1.2;
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-index-copy p {
+  max-width: 48rem;
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-index-kicker {
+  border-color: #94a5b8;
+  background: #d4dee9;
+  color: #5f6b7e;
+  box-shadow:
+    inset 5px 5px 9px rgba(72, 88, 118, 0.17),
+    inset -5px -5px 9px rgba(255, 255, 255, 0.64),
+    0 0 18px rgba(32, 200, 198, 0.08);
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-index-kicker .zibz-mini-icon {
+  background: #e3ebf4;
+  box-shadow:
+    5px 6px 11px rgba(62, 78, 108, 0.17),
+    -4px -4px 9px rgba(255, 255, 255, 0.72),
+    0 0 16px rgba(32, 200, 198, 0.18);
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-index-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.82rem;
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-index-stats > .zibz-stat-card {
+  min-height: 0;
+  padding: 0.95rem 1rem;
+  border: 2px solid #a6b5c6;
+  outline: 1px solid rgba(255, 255, 255, 0.74);
+  border-radius: 18px;
+  background: var(--zibz-panel-raised, #edf2f8);
+  box-shadow:
+    18px 22px 34px rgba(50, 64, 95, 0.22),
+    -8px -8px 18px rgba(255, 255, 255, 0.72),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.76),
+    inset -2px -2px 0 rgba(77, 92, 122, 0.17);
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-stat-card.is-live,
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-stat-card.is-open {
+  border-color: #7eb8b7;
+  box-shadow:
+    18px 22px 34px rgba(50, 64, 95, 0.23),
+    -8px -8px 18px rgba(255, 255, 255, 0.72),
+    inset 0 0 0 1px rgba(32, 200, 198, 0.3),
+    inset 0 0 18px rgba(32, 200, 198, 0.08),
+    0 0 20px rgba(32, 200, 198, 0.14);
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-role-band {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.42rem;
+  padding: 0.72rem;
+  border: 2px solid #9aaabb;
+  outline: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 22px;
+  background: #d2dce8;
+  box-shadow:
+    inset 11px 11px 20px rgba(72, 89, 119, 0.18),
+    inset -11px -11px 20px rgba(255, 255, 255, 0.64),
+    0 0 0 4px rgba(255, 255, 255, 0.22);
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-role-band-button {
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 5.2rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(151, 167, 187, 0.72);
+  outline: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 15px;
+  background: #dce5ef;
+  box-shadow:
+    7px 8px 13px rgba(59, 74, 104, 0.13),
+    -5px -5px 11px rgba(255, 255, 255, 0.58),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.72),
+    inset -1px -1px 0 rgba(77, 92, 122, 0.13);
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-role-band-button .zibz-micro-chip {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.app-shell[data-mode='business'] .zibz-command-slab .zibz-role-band-button.is-active {
+  border-color: #6faaaa;
+  background: #cfe7e8;
+  transform: translateY(2px);
+  box-shadow:
+    inset 8px 8px 14px rgba(53, 118, 132, 0.17),
+    inset -7px -7px 14px rgba(255, 255, 255, 0.6),
+    0 0 0 2px rgba(255, 255, 255, 0.36),
+    0 0 22px rgba(32, 200, 198, 0.2);
+}
+
+.app-shell[data-mode='business'] .zibz-main-layout {
+  display: grid;
+  grid-template-columns: minmax(25rem, 0.9fr) minmax(31rem, 1.1fr);
+  gap: 1.35rem;
+  align-items: stretch;
+}
+
+.app-shell[data-mode='business'] .zibz-selected-console {
+  position: relative;
+  padding: 1rem;
+  border: 2px solid #a2b1c4;
+  outline: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 34px;
+  background: var(--zibz-panel-raised, #edf2f8);
+  box-shadow:
+    34px 42px 70px var(--zibz-heavy-shadow, rgba(39, 52, 82, 0.36)),
+    -16px -16px 34px rgba(255, 255, 255, 0.72),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.78),
+    inset -2px -2px 0 rgba(77, 92, 122, 0.18);
+}
+
+.app-shell[data-mode='business'] .zibz-selected-console::before,
+.app-shell[data-mode='business'] .zibz-agent-deck::before,
+.app-shell[data-mode='business'] .zibz-workspace-stage::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border: 1px solid rgba(103, 119, 149, 0.26);
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 2px 2px 4px rgba(72, 88, 118, 0.13),
+    inset -2px -2px 4px rgba(255, 255, 255, 0.72);
+}
+
+.app-shell[data-mode='business'] .zibz-selected-console .zibz-display-stage {
+  height: 100%;
+}
+
+.app-shell[data-mode='business'] .zibz-selected-console .zibz-display-frame {
+  min-height: 34rem;
+  border: 2px solid #a1b0c2;
+  outline: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 28px;
+  background: #d9e2ec;
+  box-shadow:
+    inset 16px 16px 30px rgba(72, 88, 118, 0.18),
+    inset -14px -14px 30px rgba(255, 255, 255, 0.62),
+    0 0 0 4px rgba(255, 255, 255, 0.22);
+}
+
+.app-shell[data-mode='business'] .zibz-selected-console .zibz-display-stage.is-ready .zibz-display-frame {
+  border-color: #72abaa;
+  background: #dbe8ea;
+  box-shadow:
+    inset 13px 13px 26px rgba(45, 111, 126, 0.16),
+    inset -13px -13px 26px rgba(255, 255, 255, 0.62),
+    0 0 0 4px rgba(255, 255, 255, 0.25),
+    0 0 36px rgba(32, 200, 198, 0.24);
+}
+
+.app-shell[data-mode='business'] .zibz-selected-console .zibz-display-placeholder::before {
+  width: min(48%, 16rem);
+  border-color: #87b4b5;
+  border-radius: 32px;
+  background: #e6eef6;
+  box-shadow:
+    18px 22px 34px rgba(49, 63, 93, 0.26),
+    -8px -8px 18px rgba(255, 255, 255, 0.72),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.8),
+    inset -2px -2px 0 rgba(77, 92, 122, 0.18),
+    0 0 26px rgba(32, 200, 198, 0.16);
+}
+
+.app-shell[data-mode='business'] .zibz-selected-console .zibz-display-tag,
+.app-shell[data-mode='business'] .zibz-selected-console .zibz-display-caption {
+  border: 2px solid #a7b6c8;
+  outline: 1px solid rgba(255, 255, 255, 0.72);
+  background: #e9eff6;
+  box-shadow:
+    16px 18px 28px rgba(50, 64, 95, 0.18),
+    -7px -7px 16px rgba(255, 255, 255, 0.66),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.74),
+    inset -1px -1px 0 rgba(77, 92, 122, 0.15);
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 0.95rem;
+  padding: 1rem;
+  border: 2px solid #9dadbf;
+  outline: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 34px;
+  background: #d7e0eb;
+  box-shadow:
+    inset 14px 14px 28px rgba(76, 92, 122, 0.18),
+    inset -14px -14px 28px rgba(255, 255, 255, 0.64),
+    0 0 0 4px rgba(255, 255, 255, 0.24);
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.65rem 0.7rem 0.85rem;
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck-header h3 {
+  margin: 0.18rem 0 0;
+  color: #202736;
+  font-size: 0.98rem;
+  letter-spacing: 0.02em;
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck .zibz-card-rail {
+  position: relative;
+  z-index: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.95rem;
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck .zibz-rail-card {
+  min-height: 18rem;
+  border: 2px solid #a7b6c8;
+  outline: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 24px;
+  background: var(--zibz-panel-raised, #edf2f8);
+  box-shadow:
+    20px 24px 40px rgba(43, 57, 88, 0.26),
+    -9px -9px 18px rgba(255, 255, 255, 0.66),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.76),
+    inset -2px -2px 0 rgba(77, 92, 122, 0.17);
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck .zibz-rail-card::before {
+  inset: 8px;
+  border-color: rgba(87, 103, 134, 0.2);
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck .zibz-rail-card:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    28px 34px 52px rgba(43, 57, 88, 0.32),
+    -11px -11px 22px rgba(255, 255, 255, 0.72),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.78),
+    inset -2px -2px 0 rgba(77, 92, 122, 0.16);
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck .zibz-rail-card.is-active {
+  border-color: #68a8a7;
+  background: #e2f0f1;
+  transform: translateY(-7px);
+  box-shadow:
+    30px 38px 58px rgba(32, 73, 92, 0.34),
+    -12px -12px 24px rgba(255, 255, 255, 0.76),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.8),
+    inset -2px -2px 0 rgba(77, 92, 122, 0.17),
+    0 0 0 4px rgba(255, 255, 255, 0.26),
+    0 0 32px rgba(32, 200, 198, 0.28);
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck .zibz-rail-avatar {
+  width: min(48%, 7rem);
+  border-color: #a8b7c8;
+  background: #e5edf6;
+  box-shadow:
+    14px 17px 26px rgba(49, 63, 93, 0.24),
+    -7px -7px 16px rgba(255, 255, 255, 0.68),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.76),
+    inset -2px -2px 0 rgba(77, 92, 122, 0.16);
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck .zibz-rail-card.is-active .zibz-rail-avatar {
+  border-color: #72abaa;
+  box-shadow:
+    14px 17px 26px rgba(49, 63, 93, 0.24),
+    -7px -7px 16px rgba(255, 255, 255, 0.68),
+    inset 0 0 0 1px rgba(32, 200, 198, 0.34),
+    0 0 24px rgba(32, 200, 198, 0.2);
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck .zibz-rail-tag {
+  border-color: #a8b7c8;
+  background: #e8eef6;
+  box-shadow:
+    inset 5px 5px 10px rgba(77, 92, 122, 0.11),
+    inset -5px -5px 10px rgba(255, 255, 255, 0.62);
+}
+
+.app-shell[data-mode='business'] .zibz-agent-deck .zibz-rail-card.is-active .zibz-readiness-meter span,
+.app-shell[data-mode='business'] .zibz-micro-chip.is-active::before,
+.app-shell[data-mode='business'] .zibz-micro-chip.is-ready::before,
+.app-shell[data-mode='business'] .zibz-micro-chip.is-live::before,
+.app-shell[data-mode='business'] .zibz-micro-chip.is-synced::before {
+  box-shadow: 0 0 14px rgba(32, 200, 198, 0.45);
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-panel {
+  padding: 0;
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-shell,
+.app-shell[data-mode='business'] .zibz-workspace-empty {
+  padding: 1rem;
+  border: 2px solid #9dadbf;
+  outline: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 30px;
+  background: #d7e0eb;
+  box-shadow:
+    inset 13px 13px 26px rgba(76, 92, 122, 0.17),
+    inset -13px -13px 26px rgba(255, 255, 255, 0.62);
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-nav-card {
+  border: 2px solid #a6b5c6;
+  background: #e4ebf4;
+  box-shadow:
+    14px 17px 26px rgba(43, 57, 88, 0.2),
+    -7px -7px 15px rgba(255, 255, 255, 0.64),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.74),
+    inset -2px -2px 0 rgba(77, 92, 122, 0.15);
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-nav-card.is-active {
+  border-color: #6faaaa;
+  background: #cfe7e8;
+  transform: translateY(2px);
+  box-shadow:
+    inset 8px 8px 14px rgba(53, 118, 132, 0.16),
+    inset -7px -7px 14px rgba(255, 255, 255, 0.58),
+    0 0 24px rgba(32, 200, 198, 0.18);
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-stage {
+  position: relative;
+  border: 2px solid #a2b1c4;
+  background: var(--zibz-panel-raised, #edf2f8);
+  box-shadow:
+    24px 30px 46px rgba(43, 57, 88, 0.26),
+    -10px -10px 22px rgba(255, 255, 255, 0.68),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.76),
+    inset -2px -2px 0 rgba(77, 92, 122, 0.16);
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-meta > div {
+  border: 1px solid #aab8c9;
+  background: #dfe7f1;
+  box-shadow:
+    inset 7px 7px 13px rgba(77, 92, 122, 0.14),
+    inset -7px -7px 13px rgba(255, 255, 255, 0.62);
+}
+
+.app-shell[data-mode='business'] .zibz-workspace-note-grid .record-card {
+  border: 2px solid #a7b6c8;
+  background: #e7edf5;
+  box-shadow:
+    16px 19px 28px rgba(43, 57, 88, 0.22),
+    -8px -8px 16px rgba(255, 255, 255, 0.66),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.74),
+    inset -2px -2px 0 rgba(77, 92, 122, 0.15);
+}
+
+@media (max-width: 1180px) {
+  .app-shell[data-mode='business'] .zibz-command-slab .zibz-role-band {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .app-shell[data-mode='business'] .zibz-main-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 980px) {
   .workflow-detail-grid,
   .workflow-detail-columns,
@@ -6939,5 +8094,559 @@ a {
 
   .workflow-detail-scroll {
     max-height: none;
+  }
+}
+
+/* Final light-mode route reset: keep overview neural-only and ZiBz on a single white matte page. */
+.app-shell[data-mode='business'][data-route='/business'] .overview-brain-only::before,
+.app-shell[data-mode='business'][data-route='/business'] .overview-center-stage::before,
+.app-shell[data-mode='business'][data-route='/business'] .overview-center-stage::after,
+.app-shell[data-mode='business'][data-route='/business'] .core-mind::before,
+.app-shell[data-mode='business'][data-route='/business'] .core-mind::after {
+  content: none !important;
+  display: none !important;
+}
+
+.app-shell[data-mode='business'][data-route='/business'] .overview-brain-only {
+  min-height: calc(100vh - 8.5rem) !important;
+  padding: 0.85rem 0 1.5rem !important;
+}
+
+.app-shell[data-mode='business'][data-route='/business'] .overview-center-stage {
+  isolation: auto !important;
+  min-height: 100% !important;
+  padding: 0 !important;
+}
+
+.app-shell[data-mode='business'][data-route='/business'] .overview-center-stage .core-mind {
+  z-index: auto !important;
+  width: min(92vmin, 540px) !important;
+  filter: drop-shadow(0 0 22px rgba(0, 229, 255, 0.18)) !important;
+}
+
+.app-shell[data-mode='business'][data-route='/business'] .core-shell {
+  position: relative !important;
+  z-index: 1 !important;
+  width: 52% !important;
+  padding: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.app-shell[data-mode='business'][data-route='/business'] .core-shell-inner {
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.app-shell[data-mode='business'][data-route='/business/zibz'],
+.app-shell[data-mode='business'][data-route='/business/zibz'] .page-backdrop-static,
+.app-shell[data-mode='business'][data-route='/business/zibz'] .content-shell,
+.app-shell[data-mode='business'][data-route='/business/zibz'] .page-viewport,
+.app-shell[data-mode='business'][data-route='/business/zibz'] .page-shell {
+  background: #f6f7f5 !important;
+  background-image: none !important;
+}
+
+.app-shell[data-mode='business'][data-route='/business/zibz']::before {
+  background: none !important;
+}
+
+body:has(.app-shell[data-mode='business'][data-route='/business/zibz']),
+html:has(.app-shell[data-mode='business'][data-route='/business/zibz']),
+body:has(.app-shell[data-mode='business'][data-route='/business/zibz']) #root {
+  background: #f3f3ee !important;
+}
+
+/* Final light analog chrome: molded, etched controls instead of graphic outlines. */
+.app-shell[data-mode='business'] {
+  --analog-matte: #f3f3ee;
+  --analog-hi: rgba(255, 255, 255, 0.88);
+  --analog-line: rgba(112, 121, 132, 0.32);
+  --analog-shadow: rgba(58, 63, 72, 0.2);
+  --analog-pressed: rgba(82, 88, 98, 0.18);
+}
+
+.app-shell[data-mode='business'] .top-bar {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.app-shell[data-mode='business'] .status-chip,
+.app-shell[data-mode='business'] .realtime-mode-toggle,
+.app-shell[data-mode='business'] .mode-slider-track,
+.app-shell[data-mode='business'] .dock-glass,
+.app-shell[data-mode='business'] .dock-item {
+  border-color: var(--analog-line) !important;
+  background: var(--analog-matte) !important;
+}
+
+.app-shell[data-mode='business'] .status-chip,
+.app-shell[data-mode='business'] .mode-slider-track {
+  border-width: 1px !important;
+  border-radius: 17px !important;
+  box-shadow:
+    8px 10px 16px var(--analog-shadow),
+    -6px -6px 14px var(--analog-hi),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.84),
+    inset -1px -1px 0 rgba(97, 105, 116, 0.16) !important;
+}
+
+.app-shell[data-mode='business'] .status-chip::before,
+.app-shell[data-mode='business'] .mode-slider-track::before {
+  display: block !important;
+  content: '' !important;
+  position: absolute !important;
+  inset: 5px !important;
+  border: 1px solid rgba(112, 121, 132, 0.2) !important;
+  border-radius: inherit !important;
+  background: transparent !important;
+  pointer-events: none !important;
+  box-shadow:
+    inset 1px 1px 3px rgba(75, 82, 92, 0.09),
+    inset -1px -1px 3px rgba(255, 255, 255, 0.8) !important;
+}
+
+.app-shell[data-mode='business'] .realtime-mode-toggle {
+  border-width: 1px !important;
+  box-shadow:
+    7px 8px 14px rgba(58, 63, 72, 0.17),
+    -5px -5px 12px var(--analog-hi),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.84),
+    inset -1px -1px 0 rgba(97, 105, 116, 0.16) !important;
+}
+
+.app-shell[data-mode='business'] .realtime-mode-toggle.is-active {
+  background: var(--analog-matte) !important;
+  box-shadow:
+    inset 6px 6px 12px var(--analog-pressed),
+    inset -6px -6px 12px rgba(255, 255, 255, 0.84),
+    0 0 15px rgba(31, 199, 196, 0.28) !important;
+}
+
+.app-shell[data-mode='business'] .mode-slider-thumb {
+  top: 50% !important;
+  left: 5px !important;
+  width: 20px !important;
+  height: 20px !important;
+  transform: translateY(-50%) !important;
+  background: var(--analog-matte) !important;
+  border: 1px solid rgba(112, 121, 132, 0.36) !important;
+  box-shadow:
+    4px 5px 8px rgba(58, 63, 72, 0.18),
+    -3px -3px 7px rgba(255, 255, 255, 0.88),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.84) !important;
+}
+
+.app-shell[data-mode='business'] .mode-slider.is-active .mode-slider-thumb {
+  transform: translate(27px, -50%) !important;
+}
+
+.app-shell[data-mode='business'] .dock-glass {
+  border-width: 1px !important;
+  border-radius: 24px !important;
+  box-shadow:
+    18px 22px 34px rgba(58, 63, 72, 0.25),
+    -9px -9px 20px rgba(255, 255, 255, 0.9),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.88),
+    inset -1px -1px 0 rgba(97, 105, 116, 0.16) !important;
+}
+
+.app-shell[data-mode='business'] .dock-glass::before {
+  display: block !important;
+  content: '' !important;
+  position: absolute !important;
+  inset: 7px !important;
+  border: 1px solid rgba(112, 121, 132, 0.24) !important;
+  border-radius: 18px !important;
+  background: transparent !important;
+  box-shadow:
+    inset 2px 2px 5px rgba(75, 82, 92, 0.11),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.82) !important;
+}
+
+.app-shell[data-mode='business'] .dock-item {
+  border-width: 1px !important;
+  border-radius: 16px !important;
+  box-shadow:
+    7px 8px 14px rgba(58, 63, 72, 0.16),
+    -5px -5px 12px rgba(255, 255, 255, 0.86),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.84),
+    inset -1px -1px 0 rgba(97, 105, 116, 0.14) !important;
+}
+
+.app-shell[data-mode='business'] .dock-item.is-active {
+  color: inherit !important;
+  background: var(--analog-matte) !important;
+  transform: translateY(1px) !important;
+  box-shadow:
+    inset 7px 7px 13px var(--analog-pressed),
+    inset -7px -7px 13px rgba(255, 255, 255, 0.84),
+    0 1px 0 rgba(255, 255, 255, 0.7) !important;
+}
+
+.app-shell[data-mode='business'] .dock-item::before,
+.app-shell[data-mode='business'] .dock-item.is-active::before {
+  display: none !important;
+}
+
+.app-shell[data-mode='business'] .dock-icon,
+.app-shell[data-mode='business'] .dock-item.is-active .dock-icon {
+  color: #29313b !important;
+  text-shadow: none !important;
+}
+
+.app-shell[data-mode='business'][data-route='/business/zibz'],
+.app-shell[data-mode='business'][data-route='/business/zibz'] .page-backdrop-static,
+.app-shell[data-mode='business'][data-route='/business/zibz'] .content-shell,
+.app-shell[data-mode='business'][data-route='/business/zibz'] .page-viewport,
+.app-shell[data-mode='business'][data-route='/business/zibz'] .page-shell {
+  background-color: #f3f3ee !important;
+  background-image: radial-gradient(rgba(44, 49, 55, 0.035) 0.65px, transparent 0.65px) !important;
+  background-size: 5px 5px !important;
+}
+
+/* Unified final mode layer: one component system, analog light, cinematic dark. */
+.app-shell[data-mode='cortex'] {
+  --text-primary: #edf8ff;
+  --text-soft: rgba(214, 239, 255, 0.72);
+  --bg-glass: rgba(8, 16, 32, 0.18);
+  --bg-glass-strong: rgba(10, 20, 40, 0.32);
+  --glass-border: rgba(103, 244, 255, 0.16);
+  --glass-border-bright: rgba(103, 244, 255, 0.34);
+  --brand-accent: var(--cyan);
+  --dock-active-bg: rgba(103, 244, 255, 0.04);
+  --dock-active-border: rgba(103, 244, 255, 0.38);
+}
+
+.app-shell[data-mode='business'] .page-backdrop-static,
+.app-shell[data-mode='business'] .content-shell,
+.app-shell[data-mode='business'] .page-viewport,
+.app-shell[data-mode='business'] .page-shell {
+  background-color: #f3f3ee !important;
+  background-image:
+    radial-gradient(rgba(44, 49, 55, 0.035) 0.65px, transparent 0.65px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 18rem) !important;
+  background-size: 5px 5px, auto !important;
+}
+
+.app-shell[data-mode='business'] .mission-os-grid,
+.app-shell[data-mode='business'] .cortex-panel,
+.app-shell[data-mode='business'] .record-card,
+.app-shell[data-mode='business'] .metric-card,
+.app-shell[data-mode='business'] .list-row,
+.app-shell[data-mode='business'] .workflow-preview-frame,
+.app-shell[data-mode='business'] .workflow-detail-card,
+.app-shell[data-mode='business'] .workflow-field input,
+.app-shell[data-mode='business'] .workflow-field textarea {
+  border-width: 1px !important;
+  border-color: rgba(112, 121, 132, 0.3) !important;
+  border-radius: 28px !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.24), rgba(216, 216, 207, 0.12)),
+    #f3f3ee !important;
+  box-shadow:
+    16px 20px 32px rgba(58, 63, 72, 0.16),
+    -8px -8px 18px rgba(255, 255, 255, 0.86),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.84),
+    inset -1px -1px 0 rgba(97, 105, 116, 0.14) !important;
+}
+
+.app-shell[data-mode='business'] .cortex-panel::before,
+.app-shell[data-mode='business'] .record-card::before,
+.app-shell[data-mode='business'] .metric-card::before,
+.app-shell[data-mode='business'] .list-row::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 8px !important;
+  border: 1px solid rgba(112, 121, 132, 0.2) !important;
+  border-radius: inherit !important;
+  background: transparent !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  box-shadow:
+    inset 2px 2px 5px rgba(75, 82, 92, 0.11),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.82) !important;
+}
+
+.app-shell[data-mode='business'] .command-button,
+.app-shell[data-mode='business'] .data-chip,
+.app-shell[data-mode='business'] .status-badge {
+  border-radius: 999px !important;
+  border-color: rgba(112, 121, 132, 0.28) !important;
+  background: #f3f3ee !important;
+  color: #29313b !important;
+  box-shadow:
+    6px 7px 12px rgba(58, 63, 72, 0.13),
+    -4px -4px 9px rgba(255, 255, 255, 0.86),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+.app-shell[data-mode='business'] .command-button:active,
+.app-shell[data-mode='business'] .dock-item.is-active,
+.app-shell[data-mode='business'] .data-chip:active {
+  transform: translateY(1px) !important;
+  box-shadow:
+    inset 6px 6px 12px rgba(82, 88, 98, 0.16),
+    inset -6px -6px 12px rgba(255, 255, 255, 0.84) !important;
+}
+
+.app-shell[data-mode='cortex'] .page-shell:not(.page-shell-overview) .mission-os-grid {
+  position: relative;
+  overflow: hidden;
+}
+
+.app-shell[data-mode='cortex'] .page-shell:not(.page-shell-overview) .mission-os-grid::before,
+.app-shell[data-mode='cortex'] .page-shell:not(.page-shell-overview) .mission-os-grid::after {
+  content: '';
+  position: absolute;
+  inset: -18%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.app-shell[data-mode='cortex'] .page-shell:not(.page-shell-overview) .mission-os-grid::before {
+  background:
+    linear-gradient(90deg, transparent 0 48%, rgba(103, 244, 255, 0.1) 50%, transparent 52%),
+    linear-gradient(180deg, transparent 0 48%, rgba(221, 111, 255, 0.08) 50%, transparent 52%);
+  background-size: 110px 110px;
+  animation: cinematic-grid-drift 16s linear infinite;
+}
+
+.app-shell[data-mode='cortex'] .page-shell:not(.page-shell-overview) .mission-os-grid::after {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(103, 244, 255, 0.16), transparent 8%),
+    conic-gradient(from 90deg, transparent, rgba(103, 244, 255, 0.12), transparent 34%);
+  opacity: 0.42;
+  animation: cinematic-orbit 11s linear infinite;
+}
+
+.app-shell[data-mode='cortex'] .cortex-panel {
+  transform-origin: 50% 50%;
+  animation: cinematic-panel-rise 900ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.app-shell[data-mode='cortex'] .cortex-panel::after {
+  opacity: 0.72;
+  animation: cinematic-scan-sweep 3.8s ease-in-out infinite;
+}
+
+.app-shell[data-mode='cortex'] .record-card,
+.app-shell[data-mode='cortex'] .metric-card,
+.app-shell[data-mode='cortex'] .list-row,
+.app-shell[data-mode='cortex'] .workflow-preview-frame {
+  animation: cinematic-card-phase 7s ease-in-out infinite;
+}
+
+.app-shell[data-mode='cortex'] .panel-header h2,
+.app-shell[data-mode='cortex'] .record-card h3,
+.app-shell[data-mode='cortex'] .metric-card strong,
+.app-shell[data-mode='cortex'] .workflow-selector-title {
+  font-family: 'Orbitron', sans-serif;
+  text-shadow:
+    0 0 16px rgba(103, 244, 255, 0.14),
+    0 0 34px rgba(221, 111, 255, 0.08);
+}
+
+.app-shell[data-mode='cortex'][data-route='/cortex/knowledge'] .mission-os-grid::after {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(103, 244, 255, 0.22), transparent 4%),
+    radial-gradient(circle at 72% 24%, rgba(221, 111, 255, 0.18), transparent 5%),
+    radial-gradient(circle at 52% 78%, rgba(139, 255, 138, 0.12), transparent 5%),
+    linear-gradient(60deg, transparent 42%, rgba(103, 244, 255, 0.11) 43% 44%, transparent 45%);
+  animation: memory-lattice-orbit 9s ease-in-out infinite;
+}
+
+.app-shell[data-mode='cortex'][data-route='/cortex/workflows'] .workflow-card::after,
+.app-shell[data-mode='cortex'][data-route='/cortex/workflows'] .workflow-preview-frame::after {
+  background: linear-gradient(90deg, transparent, rgba(103, 244, 255, 0.28), transparent);
+  animation: workflow-sequencer 1.9s linear infinite;
+}
+
+.app-shell[data-mode='cortex'][data-route='/cortex/operations'] .mission-os-grid::after {
+  background: conic-gradient(from 0deg, rgba(103, 244, 255, 0.3), transparent 22%, transparent);
+  border-radius: 999px;
+  animation: tactical-radar 3.8s linear infinite;
+}
+
+.app-shell[data-mode='cortex'][data-route='/cortex/economy'] .metric-card::after {
+  background:
+    repeating-linear-gradient(90deg, rgba(103, 244, 255, 0.16) 0 2px, transparent 2px 10px),
+    linear-gradient(90deg, transparent, rgba(139, 255, 138, 0.18), transparent);
+  animation: economy-ticker 2.1s linear infinite;
+}
+
+.app-shell[data-mode='cortex'][data-route='/cortex/community'] .record-card::after {
+  background: radial-gradient(circle, rgba(103, 244, 255, 0.18), transparent 34%);
+  animation: community-wave 3.2s ease-out infinite;
+}
+
+.app-shell[data-mode='cortex'][data-route='/cortex/studio'] .record-card::after {
+  background:
+    linear-gradient(100deg, transparent 18%, rgba(221, 111, 255, 0.18), transparent 42%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 12px);
+  animation: studio-film-sweep 2.8s ease-in-out infinite;
+}
+
+.app-shell[data-mode='cortex'][data-route='/cortex/integrations'] .record-card::after {
+  background:
+    repeating-linear-gradient(180deg, rgba(103, 244, 255, 0.15) 0 1px, transparent 1px 9px),
+    linear-gradient(180deg, transparent, rgba(103, 244, 255, 0.16), transparent);
+  animation: integration-data-stream 1.6s linear infinite;
+}
+
+@keyframes cinematic-grid-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(110px, 110px, 0);
+  }
+}
+
+@keyframes cinematic-orbit {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+
+  to {
+    transform: rotate(360deg) scale(1.04);
+  }
+}
+
+@keyframes cinematic-panel-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cinematic-scan-sweep {
+  0%,
+  100% {
+    transform: translateX(-18%);
+    opacity: 0.18;
+  }
+
+  50% {
+    transform: translateX(18%);
+    opacity: 0.65;
+  }
+}
+
+@keyframes cinematic-card-phase {
+  0%,
+  100% {
+    filter: saturate(1);
+  }
+
+  50% {
+    filter: saturate(1.18) brightness(1.05);
+  }
+}
+
+@keyframes memory-lattice-orbit {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-16px) rotate(5deg);
+  }
+}
+
+@keyframes workflow-sequencer {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes tactical-radar {
+  from {
+    transform: rotate(0deg) scale(0.8);
+  }
+
+  to {
+    transform: rotate(360deg) scale(0.8);
+  }
+}
+
+@keyframes economy-ticker {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 120px 0;
+  }
+}
+
+@keyframes community-wave {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+
+@keyframes studio-film-sweep {
+  0%,
+  100% {
+    transform: translateX(-16%);
+    opacity: 0.22;
+  }
+
+  50% {
+    transform: translateX(16%);
+    opacity: 0.62;
+  }
+}
+
+@keyframes integration-data-stream {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 0 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell[data-mode='cortex'] .mission-os-grid::before,
+  .app-shell[data-mode='cortex'] .mission-os-grid::after,
+  .app-shell[data-mode='cortex'] .cortex-panel,
+  .app-shell[data-mode='cortex'] .cortex-panel::after,
+  .app-shell[data-mode='cortex'] .record-card,
+  .app-shell[data-mode='cortex'] .record-card::after,
+  .app-shell[data-mode='cortex'] .metric-card,
+  .app-shell[data-mode='cortex'] .metric-card::after,
+  .app-shell[data-mode='cortex'] .list-row,
+  .app-shell[data-mode='cortex'] .workflow-card::after,
+  .app-shell[data-mode='cortex'] .workflow-preview-frame,
+  .app-shell[data-mode='cortex'] .workflow-preview-frame::after,
+  .app-shell[data-mode='cortex'] .zibz-unified-page .zs-op-card::after,
+  .app-shell[data-mode='cortex'] .zibz-unified-page .zs-deck-panel::after {
+    animation: none !important;
+    transform: none !important;
   }
 }

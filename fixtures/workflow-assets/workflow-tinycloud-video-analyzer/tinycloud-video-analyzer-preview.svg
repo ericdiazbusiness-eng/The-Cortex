@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 480">
+  <rect width="860" height="480" rx="30" fill="#070d1a" />
+  <rect x="42" y="54" width="170" height="76" rx="18" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+  <rect x="262" y="54" width="192" height="76" rx="18" fill="#27173d" stroke="#dd6fff" stroke-width="3" />
+  <rect x="504" y="54" width="208" height="88" rx="18" fill="#182929" stroke="#8bff8a" stroke-width="3" />
+  <rect x="262" y="182" width="232" height="88" rx="18" fill="#372118" stroke="#ffc86f" stroke-width="3" />
+  <rect x="546" y="182" width="200" height="76" rx="18" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+  <rect x="320" y="332" width="256" height="76" rx="18" fill="#372118" stroke="#ffc86f" stroke-width="3" />
+
+  <text x="127" y="92" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Video Input</text>
+  <text x="127" y="112" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">file / URL / collection</text>
+
+  <text x="358" y="92" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Tinycloud CLI</text>
+  <text x="358" y="112" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">interactive / prompt / JSON / session</text>
+
+  <text x="608" y="86" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Cloudglue Analysis</text>
+  <text x="608" y="106" fill="#b4f7b3" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">deep video work orchestration</text>
+  <text x="608" y="124" fill="#b4f7b3" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">requires valid API key</text>
+
+  <text x="378" y="218" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Video Outputs</text>
+  <text x="378" y="238" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">analysis / captions / search / dashboards</text>
+  <text x="378" y="256" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">repurposed content / exports</text>
+
+  <text x="646" y="218" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Review + Route</text>
+  <text x="646" y="238" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">approve / publish / automate next</text>
+
+  <text x="448" y="368" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Current Live Status</text>
+  <text x="448" y="388" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">workflow documented, auth still blocked</text>
+
+  <path d="M212 92h50" stroke="#67f4ff" stroke-width="4" stroke-linecap="round" />
+  <path d="M454 92h50" stroke="#dd6fff" stroke-width="4" stroke-linecap="round" />
+  <path d="M358 130v52" stroke="#ffc86f" stroke-width="4" stroke-linecap="round" />
+  <path d="M494 226h52" stroke="#ffc86f" stroke-width="4" stroke-linecap="round" />
+  <path d="M646 258v26H448v48" stroke="#67f4ff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="262" cy="92" r="6" fill="#67f4ff" />
+  <circle cx="504" cy="92" r="6" fill="#dd6fff" />
+  <circle cx="358" cy="182" r="6" fill="#ffc86f" />
+  <circle cx="546" cy="226" r="6" fill="#ffc86f" />
+</svg>

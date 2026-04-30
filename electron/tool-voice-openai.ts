@@ -101,6 +101,15 @@ const getOpenAIAuthHint = (status: number) =>
 const getElevenLabsApiKey = () => process.env.ELEVENLABS_API_KEY?.trim() ?? null
 const getElevenLabsTranscriptionLanguage = () =>
   process.env.ELEVENLABS_STT_LANGUAGE?.trim() || 'en'
+const getElevenLabsOutputFormat = () =>
+  process.env.ELEVENLABS_OUTPUT_FORMAT?.trim() || 'mp3_44100_128'
+const getElevenLabsOptimizeStreamingLatency = () => {
+  const configured = Number(process.env.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY)
+
+  return Number.isFinite(configured)
+    ? String(Math.min(4, Math.max(0, Math.trunc(configured))))
+    : '3'
+}
 
 const parseJsonEnv = <T,>(value: string | undefined, fallback: T): T => {
   if (!value?.trim()) {
@@ -981,7 +990,8 @@ const synthesizeSpeechWithElevenLabs = async (
   const controller = new AbortController()
   const voiceId = resolveElevenLabsVoiceId(payload.voice)
   const model = payload.model?.trim() || 'eleven_flash_v2_5'
-  const outputFormat = 'mp3_44100_128'
+  const outputFormat = getElevenLabsOutputFormat()
+  const optimizeStreamingLatency = getElevenLabsOptimizeStreamingLatency()
   const voiceSettings = getElevenLabsVoiceSettings(payload.voiceSettings)
   const pronunciationDictionaries = getElevenLabsPronunciationDictionaries(
     payload.pronunciationDictionaries,
@@ -1012,7 +1022,7 @@ const synthesizeSpeechWithElevenLabs = async (
   let response: Response
 
   try {
-    response = await fetch(`${ELEVENLABS_SPEECH_URL}/${encodeURIComponent(voiceId)}?output_format=${outputFormat}&optimize_streaming_latency=3`, {
+    response = await fetch(`${ELEVENLABS_SPEECH_URL}/${encodeURIComponent(voiceId)}?output_format=${encodeURIComponent(outputFormat)}&optimize_streaming_latency=${optimizeStreamingLatency}`, {
       method: 'POST',
       headers: {
         'xi-api-key': apiKey,

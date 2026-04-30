@@ -1,49 +1,54 @@
 import { useEffect } from 'react'
 import { Panel } from '@/components/Panel'
 import { useCortex } from '@/hooks/useCortex'
+import { buildIntegrationsModel } from './workspace-page-models'
 
 export const IntegrationsPage = () => {
-  const { snapshot, setViewContext, uiFocus } = useCortex()
+  const { businessSnapshot, snapshot, setViewContext, uiFocus, uiMode } = useCortex()
+  const model = buildIntegrationsModel(uiMode, snapshot, businessSnapshot, uiFocus.integrationMonitorId)
 
   useEffect(() => {
-    if (!snapshot) {
+    const nextModel = buildIntegrationsModel(uiMode, snapshot, businessSnapshot, uiFocus.integrationMonitorId)
+    if (!nextModel) {
       return
     }
 
     setViewContext({
       details: {
-        integrationCount: snapshot.integrationMonitors.length,
-        warningIntegrations: snapshot.integrationMonitors.filter((monitor) => monitor.status !== 'healthy').length,
+        integrationCount: nextModel.cards.length,
+        warningIntegrations: nextModel.cards.filter((monitor) => monitor.status !== 'healthy' && monitor.status !== 'live').length,
         focusedIntegrationId: uiFocus.integrationMonitorId,
       },
     })
-  }, [setViewContext, snapshot, uiFocus.integrationMonitorId])
+  }, [businessSnapshot, setViewContext, snapshot, uiFocus.integrationMonitorId, uiMode])
 
-  if (!snapshot) {
+  if (!model) {
     return null
   }
 
   return (
-    <div className="mission-os-grid">
-      <Panel title="Scavenjer Integration Monitor" eyebrow="Supabase, wallets, commerce, Discord" className="minimal-panel">
+    <div className="mission-os-grid page-motif-integrations">
+      <Panel title={model.title} eyebrow={model.eyebrow} className="minimal-panel">
         <div className="record-grid">
-          {snapshot.integrationMonitors.map((monitor) => (
+          {model.cards.map((monitor) => (
             <article
               key={monitor.id}
-              className={`record-card accent-${monitor.accent}${uiFocus.integrationMonitorId === monitor.id ? ' is-focused' : ''}`}
+              className={`record-card accent-${monitor.accent}${model.focusedId === monitor.id ? ' is-focused' : ''}`}
             >
               <div className="record-card-head">
                 <span className="status-badge status-active">{monitor.status}</span>
-                <span className="record-card-meta">{monitor.freshness}</span>
+                <span className="record-card-meta">{monitor.meta}</span>
               </div>
-              <h3>{monitor.name}</h3>
-              <p>{monitor.source}</p>
-              <div className="record-footnote">
-                <strong>Action Required</strong>
-                <span>{monitor.actionRequired ?? 'None'}</span>
-              </div>
+              <h3>{monitor.title}</h3>
+              <p>{monitor.body}</p>
+              {(monitor.footnotes ?? []).map((footnote) => (
+                <div key={footnote.label} className="record-footnote">
+                  <strong>{footnote.label}</strong>
+                  <span>{footnote.value}</span>
+                </div>
+              ))}
               <div className="chip-row compact">
-                {monitor.failureFlags.map((flag) => (
+                {(monitor.chips ?? []).map((flag) => (
                   <span key={flag} className="data-chip">
                     {flag}
                   </span>

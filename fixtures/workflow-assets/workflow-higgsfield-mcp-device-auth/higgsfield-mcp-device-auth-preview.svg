@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 540">
+  <rect width="980" height="540" rx="30" fill="#070d1a" />
+  <rect x="42" y="56" width="212" height="90" rx="18" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+  <rect x="298" y="56" width="222" height="110" rx="18" fill="#27173d" stroke="#dd6fff" stroke-width="3" />
+  <rect x="570" y="56" width="210" height="96" rx="18" fill="#182929" stroke="#8bff8a" stroke-width="3" />
+  <rect x="798" y="56" width="142" height="96" rx="18" fill="#372118" stroke="#ffc86f" stroke-width="3" />
+  <rect x="246" y="224" width="300" height="104" rx="18" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+  <rect x="584" y="224" width="316" height="116" rx="18" fill="#372118" stroke="#ffc86f" stroke-width="3" />
+  <rect x="320" y="392" width="364" height="102" rx="18" fill="#27173d" stroke="#dd6fff" stroke-width="3" />
+
+  <text x="148" y="92" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Protected Resource</text>
+  <text x="148" y="112" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">mcp.higgsfield.ai metadata</text>
+  <text x="148" y="130" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">points Hermes-class clients</text>
+
+  <text x="409" y="90" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Device Flow Auth</text>
+  <text x="409" y="110" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">POST /authorize → verification URI</text>
+  <text x="409" y="128" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">poll /token until approval lands</text>
+  <text x="409" y="146" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">fnf-device-auth.higgsfield.ai</text>
+
+  <text x="675" y="92" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Token In Cortex</text>
+  <text x="675" y="112" fill="#b4f7b3" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">persist bearer as</text>
+  <text x="675" y="130" fill="#b4f7b3" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">HIGGSFIELD_MCP_TOKEN</text>
+
+  <text x="869" y="92" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Native MCP</text>
+  <text x="869" y="112" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">HTTP + Bearer</text>
+  <text x="869" y="130" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">header auth</text>
+
+  <text x="396" y="260" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Live Tool Verification</text>
+  <text x="396" y="280" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">balance / list_workspaces / models_explore</text>
+  <text x="396" y="298" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">show_marketing_studio / show_generations / show_medias</text>
+  <text x="396" y="316" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">proves auth + tool discovery are live</text>
+
+  <text x="742" y="260" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Current Runtime Context</text>
+  <text x="742" y="280" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Account: zaidekthecreator@gmail.com</text>
+  <text x="742" y="298" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Plan: free / Credits: 0 / Private workspace live</text>
+  <text x="742" y="316" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Browsing works; new paid generations are blocked</text>
+
+  <text x="502" y="430" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Remaining Cleanup</text>
+  <text x="502" y="450" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Live MCP connection works, but the expected Cortex config/.env</text>
+  <text x="502" y="468" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">wiring was not obvious on disk, so persistence should be cleaned up.</text>
+
+  <path d="M254 100h44" stroke="#67f4ff" stroke-width="4" stroke-linecap="round" />
+  <path d="M520 100h50" stroke="#dd6fff" stroke-width="4" stroke-linecap="round" />
+  <path d="M780 100h18" stroke="#8bff8a" stroke-width="4" stroke-linecap="round" />
+  <path d="M409 166v58" stroke="#67f4ff" stroke-width="4" stroke-linecap="round" />
+  <path d="M546 276h38" stroke="#67f4ff" stroke-width="4" stroke-linecap="round" />
+  <path d="M742 340v18H502v34" stroke="#ffc86f" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="298" cy="100" r="6" fill="#67f4ff" />
+  <circle cx="570" cy="100" r="6" fill="#dd6fff" />
+  <circle cx="798" cy="100" r="6" fill="#8bff8a" />
+  <circle cx="409" cy="224" r="6" fill="#67f4ff" />
+  <circle cx="584" cy="276" r="6" fill="#67f4ff" />
+</svg>

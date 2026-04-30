@@ -1,51 +1,49 @@
 import { useEffect } from 'react'
 import { Panel } from '@/components/Panel'
 import { useCortex } from '@/hooks/useCortex'
-import { formatDateTime } from './mission-os-utils'
+import { buildKnowledgeModel } from './workspace-page-models'
 
 export const KnowledgePage = () => {
-  const { snapshot, setViewContext, uiFocus } = useCortex()
+  const { businessSnapshot, setViewContext, snapshot, uiFocus, uiMode } = useCortex()
 
-  const focusedEntry =
-    snapshot?.vaultEntries.find((entry) => entry.id === uiFocus.vaultEntryId) ??
-    snapshot?.vaultEntries[0] ??
-    null
+  const model = buildKnowledgeModel(uiMode, snapshot, businessSnapshot, uiFocus.vaultEntryId)
 
   useEffect(() => {
-    if (!snapshot) {
+    const nextModel = buildKnowledgeModel(uiMode, snapshot, businessSnapshot, uiFocus.vaultEntryId)
+    if (!nextModel) {
       return
     }
 
     setViewContext({
       details: {
-        vaultEntries: snapshot.vaultEntries.length,
-        canonicalEntries: snapshot.vaultEntries.filter((entry) => entry.canonical).length,
-        loreEntries: snapshot.loreEntries.length,
+        vaultEntries: nextModel.cards.length,
+        canonicalEntries: nextModel.cards.filter((entry) => entry.meta === 'canonical').length,
+        loreEntries: nextModel.supportItems.length,
       },
     })
-  }, [setViewContext, snapshot])
+  }, [businessSnapshot, setViewContext, snapshot, uiFocus.vaultEntryId, uiMode])
 
-  if (!snapshot) {
+  if (!model) {
     return null
   }
 
   return (
-    <div className="mission-os-grid">
-      <Panel title="Scavenjer Source Truth" eyebrow="Doctrine, rules, admin context" className="minimal-panel">
+    <div className="mission-os-grid page-motif-knowledge">
+      <Panel title={model.title} eyebrow={model.eyebrow} className="minimal-panel">
         <div className="record-grid">
-          {snapshot.vaultEntries.map((entry) => (
+          {model.cards.map((entry) => (
             <article
               key={entry.id}
-              className={`record-card accent-${entry.accent}${focusedEntry?.id === entry.id ? ' is-focused' : ''}`}
+              className={`record-card accent-${entry.accent}${model.focusedCard?.id === entry.id ? ' is-focused' : ''}`}
             >
               <div className="record-card-head">
-                <span className="status-badge status-active">{entry.category}</span>
-                <span className="record-card-meta">{entry.canonical ? 'canonical' : 'draft'}</span>
+                <span className="status-badge status-active">{entry.status}</span>
+                <span className="record-card-meta">{entry.meta}</span>
               </div>
               <h3>{entry.title}</h3>
-              <p>{entry.summary}</p>
+              <p>{entry.body}</p>
               <div className="chip-row compact">
-                {entry.tags.map((tag) => (
+                {(entry.chips ?? []).map((tag) => (
                   <span key={tag} className="data-chip">
                     {tag}
                   </span>
@@ -57,34 +55,36 @@ export const KnowledgePage = () => {
       </Panel>
 
       <div className="mission-os-detail-grid">
-        <Panel title="Focused Vault Entry" eyebrow="Canonical memory detail" className="minimal-panel">
-          {focusedEntry ? (
+        <Panel title={model.detailTitle} eyebrow={model.detailEyebrow} className="minimal-panel">
+          {model.focusedCard ? (
             <div className="record-card accent-cyan">
               <div className="record-card-head">
-                <span className="status-badge status-active">{focusedEntry.category}</span>
-                <span className="record-card-meta">{formatDateTime(focusedEntry.updatedAt)}</span>
+                <span className="status-badge status-active">{model.focusedCard.status}</span>
+                <span className="record-card-meta">{model.focusedCard.meta}</span>
               </div>
-              <h3>{focusedEntry.title}</h3>
-              <p>{focusedEntry.summary}</p>
-              <div className="record-footnote">
-                <strong>Source</strong>
-                <span>{focusedEntry.source}</span>
-              </div>
+              <h3>{model.focusedCard.title}</h3>
+              <p>{model.focusedCard.body}</p>
+              {(model.focusedCard.footnotes ?? []).map((footnote) => (
+                <div key={footnote.label} className="record-footnote">
+                  <strong>{footnote.label}</strong>
+                  <span>{footnote.value}</span>
+                </div>
+              ))}
             </div>
           ) : null}
         </Panel>
 
-        <Panel title="Lore / Simulations" eyebrow="Ekos, identity, phase trees" className="minimal-panel">
+        <Panel title={model.supportTitle} eyebrow={model.supportEyebrow} className="minimal-panel">
           <div className="stack-list">
-            {snapshot.loreEntries.map((entry) => (
+            {model.supportItems.map((entry) => (
               <article key={entry.id} className={`list-row accent-${entry.accent}`}>
                 <div>
                   <strong>{entry.title}</strong>
-                  <span>{entry.arc}</span>
+                  <span>{entry.subtitle}</span>
                 </div>
                 <div>
-                  <strong>{entry.canonStatus}</strong>
-                  <span>{entry.phaseTree}</span>
+                  <strong>{entry.status}</strong>
+                  <span>{entry.meta}</span>
                 </div>
               </article>
             ))}

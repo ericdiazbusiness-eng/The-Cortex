@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { Panel } from '@/components/Panel'
 import { useCortex } from '@/hooks/useCortex'
 import {
   BUSINESS_ROLE_DESCRIPTIONS,
@@ -11,7 +10,10 @@ import {
   type ZibRoleGroup,
 } from '@/lib/zib-profiles'
 
+import './ZibzPage.css'
+
 type ZibWorkspaceSection = 'missions' | 'context' | 'memory' | 'outputs'
+type ZibReadiness = 'Ready' | 'Active' | 'Queueing' | 'Synced' | 'Idle'
 
 type WorkspaceSectionCopy = {
   label: string
@@ -21,13 +23,22 @@ type WorkspaceSectionCopy = {
   notes: string[]
 }
 
+type RoleCardCopy = {
+  icon: string
+  title: ZibRoleGroup
+  description: string
+  accent: string
+  secondary: string
+  tertiary: string
+}
+
 const WORKSPACE_SECTIONS: Record<ZibWorkspaceSection, WorkspaceSectionCopy> = {
   missions: {
     label: 'Missions',
-    eyebrow: 'Selection-gated queue',
+    eyebrow: 'Selection queue',
     title: 'Autonomous work stack',
     description:
-      'The selected operator owns the next queue of decisions, approvals, and action loops for this role.',
+      'The selected ZiB owns the next queue of decisions, approvals, and action loops for this role.',
     notes: ['Priority queue', 'Approval dependency', 'Measurable outcome'],
   },
   context: {
@@ -35,8 +46,8 @@ const WORKSPACE_SECTIONS: Record<ZibWorkspaceSection, WorkspaceSectionCopy> = {
     eyebrow: 'Runtime surface',
     title: 'Operating context',
     description:
-      'Current state, supporting source material, blockers, and fresh signals stay attached to the selected operator.',
-    notes: ['Current status', 'Active source context', 'Recent changes'],
+      'Current state, source material, blockers, and fresh signals stay attached to this ZiB lane.',
+    notes: ['Current status', 'Source context', 'Recent changes'],
   },
   memory: {
     label: 'Memory',
@@ -56,6 +67,76 @@ const WORKSPACE_SECTIONS: Record<ZibWorkspaceSection, WorkspaceSectionCopy> = {
   },
 }
 
+const ROLE_CARDS: Record<ZibRoleGroup, RoleCardCopy> = {
+  Command: {
+    icon: 'C',
+    title: 'Command',
+    description: 'Lead operations and drive mission execution.',
+    accent: '#ff4db2',
+    secondary: '#2defff',
+    tertiary: '#ff6f3d',
+  },
+  Intelligence: {
+    icon: 'I',
+    title: 'Intelligence',
+    description: 'Analyze data and surface critical insights.',
+    accent: '#2aa8ff',
+    secondary: '#66f7ff',
+    tertiary: '#8a7cff',
+  },
+  Field: {
+    icon: 'F',
+    title: 'Field',
+    description: 'Operate in the field and close the distance.',
+    accent: '#67d66f',
+    secondary: '#9cffac',
+    tertiary: '#3ec5ff',
+  },
+  Creative: {
+    icon: 'A',
+    title: 'Creative',
+    description: 'Generate ideas and craft compelling content.',
+    accent: '#9c5cff',
+    secondary: '#db86ff',
+    tertiary: '#4ddfff',
+  },
+  Systems: {
+    icon: 'S',
+    title: 'Systems',
+    description: 'Build, automate, and optimize systems.',
+    accent: '#38baff',
+    secondary: '#65f2ff',
+    tertiary: '#4b7cff',
+  },
+  Oversight: {
+    icon: 'O',
+    title: 'Oversight',
+    description: 'Govern, audit, and ensure accountability.',
+    accent: '#f5b93f',
+    secondary: '#ffe47c',
+    tertiary: '#55dfff',
+  },
+}
+
+const ROLE_READINESS: Record<ZibRoleGroup, ZibReadiness> = {
+  Command: 'Active',
+  Intelligence: 'Synced',
+  Field: 'Queueing',
+  Creative: 'Ready',
+  Systems: 'Synced',
+  Oversight: 'Ready',
+}
+
+const READINESS_LOAD: Record<ZibReadiness, number> = {
+  Ready: 78,
+  Active: 92,
+  Queueing: 64,
+  Synced: 86,
+  Idle: 42,
+}
+
+const ROLE_OPERATOR_LIMIT = 2
+
 const getPlaceholderInitials = (label: string) =>
   label
     .split(' ')
@@ -64,261 +145,210 @@ const getPlaceholderInitials = (label: string) =>
     .slice(0, 2)
     .toUpperCase()
 
-const getZibCardStyle = (placeholder: ZibPlaceholder) =>
-  ({
-    '--zib-primary': placeholder.primary,
-    '--zib-secondary': placeholder.secondary,
-    '--zib-tertiary': placeholder.tertiary,
-  }) as CSSProperties
+const getModeSubtitle = (uiMode: string) =>
+  uiMode === 'business'
+    ? 'Select a ZiB and business-operation role to enter the workspace.'
+    : 'Select a ZiB and Scavenjer-operation role to enter the workspace.'
+
+const getRoleProfileSummary = (profiles: ZibPlaceholder[]) =>
+  profiles
+    .slice(0, ROLE_OPERATOR_LIMIT)
+    .map((profile) => profile.name)
+    .join(' / ')
 
 export const ZibzPage = () => {
   const { setViewContext, uiMode } = useCortex()
   const [selectedRole, setSelectedRole] = useState<ZibRoleGroup>('Command')
-  const [selectedPlaceholderId, setSelectedPlaceholderId] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<ZibWorkspaceSection>('missions')
+
   const sectionName = uiMode === 'business' ? 'ZiBz' : 'Xylos'
-  const itemName = uiMode === 'business' ? 'ZiB' : 'Xylos'
-  const indexTitle = uiMode === 'business' ? 'ZiB Index' : 'Xylos Index'
   const profiles = uiMode === 'business' ? BUSINESS_ZIB_PROFILES : SCAVENJER_XYLOS_PROFILES
   const roleDescriptions =
     uiMode === 'business' ? BUSINESS_ROLE_DESCRIPTIONS : SCAVENJER_ROLE_DESCRIPTIONS
 
-  const visiblePlaceholders = useMemo(
-    () => profiles.filter((entry) => entry.group === selectedRole),
+  const activeRoleCopy = ROLE_CARDS[selectedRole]
+  const activeReadiness = ROLE_READINESS[selectedRole]
+  const activeWorkspace = WORKSPACE_SECTIONS[activeSection]
+  const activeProfiles = useMemo(
+    () => profiles.filter((profile) => profile.group === selectedRole),
     [profiles, selectedRole],
   )
-
-  const selectedPlaceholder =
-    visiblePlaceholders.find((entry) => entry.id === selectedPlaceholderId) ?? null
-
-  const activeWorkspace = selectedPlaceholder ? WORKSPACE_SECTIONS[activeSection] : null
 
   useEffect(() => {
     setViewContext({
       details: {
         selectedRole,
-        selectedZib: selectedPlaceholder?.name ?? null,
-        hasSelectedZib: Boolean(selectedPlaceholder),
-        zibWorkspaceSection: selectedPlaceholder ? activeSection : null,
+        selectedZib: selectedRole,
+        hasSelectedZib: true,
+        zibWorkspaceSection: activeSection,
+        selectedZibStatus: activeReadiness,
         sectionName,
       },
     })
-  }, [activeSection, sectionName, selectedPlaceholder, selectedRole, setViewContext])
+  }, [activeReadiness, activeSection, sectionName, selectedRole, setViewContext])
 
   const handleRoleSelect = (role: ZibRoleGroup) => {
     setSelectedRole(role)
-    setSelectedPlaceholderId(null)
-    setActiveSection('missions')
-  }
-
-  const handleZibSelect = (placeholder: ZibPlaceholder) => {
-    setSelectedPlaceholderId(placeholder.id)
     setActiveSection('missions')
   }
 
   return (
-    <div className="mission-os-grid zibz-index-page">
-      <Panel title={indexTitle} eyebrow="Selection-first operator surface" className="minimal-panel">
-        <div className="zibz-index-shell">
-          <div className="zibz-index-intro">
-            <div className="zibz-index-copy">
-              <span className="zibz-index-kicker">{selectedRole}</span>
-              <h3>{roleDescriptions[selectedRole]}</h3>
-              <p>
-                Select a role, choose an autonomous {itemName}, then reveal the operating workspace.
-                The structure stays fixed while the role context changes between Scavenjer and business mode.
-              </p>
-            </div>
+    <div className="zibz-unified-page page-motif-zibz">
+      <div className="zs-shell">
+        <header className="zs-hero">
+          <span className="zs-hero-kicker">The Cortex</span>
+          <h1>Choose a ZiB</h1>
+          <p>{getModeSubtitle(uiMode)}</p>
+        </header>
 
-            <div className="zibz-index-stats">
-              <div>
-                <span>Role View</span>
-                <strong>{selectedRole}</strong>
-              </div>
-              <div>
-                <span>Visible Slots</span>
-                <strong>{visiblePlaceholders.length}</strong>
-              </div>
-              <div>
-                <span>Workspace</span>
-                <strong>{selectedPlaceholder ? 'Open' : 'Locked'}</strong>
-              </div>
-            </div>
-          </div>
+        <section className="zs-role-card-grid" aria-label={`${sectionName} role selection`}>
+          {ZIB_ROLE_ORDER.map((role) => {
+            const card = ROLE_CARDS[role]
+            const roleProfiles = profiles.filter((profile) => profile.group === role)
+            const isSelected = role === selectedRole
+            const readiness = ROLE_READINESS[role]
+            const load = READINESS_LOAD[readiness]
 
-          <div className="zibz-role-band" role="tablist" aria-label={`${sectionName} role groups`}>
-            {ZIB_ROLE_ORDER.map((role) => (
+            return (
               <button
                 key={role}
                 type="button"
-                role="tab"
-                aria-selected={role === selectedRole}
-                className={`zibz-role-band-button${role === selectedRole ? ' is-active' : ''}`}
+                className={`zs-choice-card ${isSelected ? 'is-selected' : ''}`}
+                style={
+                  {
+                    '--zib-accent': card.accent,
+                    '--zib-secondary': card.secondary,
+                    '--zib-tertiary': card.tertiary,
+                  } as CSSProperties
+                }
+                aria-pressed={isSelected}
                 onClick={() => handleRoleSelect(role)}
               >
-                <span>{role}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="zibz-selector-stage">
-            <div
-              className={`zibz-display-stage${selectedPlaceholder ? ' is-ready' : ''}`}
-              style={selectedPlaceholder ? getZibCardStyle(selectedPlaceholder) : undefined}
-            >
-              <div className="zibz-display-frame">
-                {selectedPlaceholder ? (
-                  selectedPlaceholder.imageSrc ? (
-                    <img
-                      className="zibz-display-image"
-                      src={selectedPlaceholder.imageSrc}
-                      alt={selectedPlaceholder.name}
+                <span className="zs-selected-check" aria-hidden="true">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="m5 12 4.2 4.2L19 6.8"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     />
-                  ) : (
-                    <div className="zibz-display-placeholder" aria-hidden="true">
-                      <span>{getPlaceholderInitials(selectedPlaceholder.name)}</span>
-                    </div>
-                  )
-                ) : (
-                  <div className="zibz-display-empty">
-                    <span className="zibz-display-empty-mark">{itemName}</span>
-                    <strong>Select a {itemName}</strong>
-                    <p>Missions, context, memory, and outputs remain scoped until a role-specific {itemName} is chosen.</p>
-                  </div>
-                )}
-
-                <div className="zibz-display-tag">
-                  <strong>{selectedPlaceholder?.name ?? `${selectedRole} Index`}</strong>
-                  <span>{selectedPlaceholder?.role ?? 'Selection required'}</span>
-                </div>
-              </div>
-
-              <div className="zibz-display-caption">
-                <span className="surface-label">
-                  {selectedPlaceholder ? `Selected ${itemName}` : 'Selection gate'}
+                  </svg>
                 </span>
-                <strong>
-                  {selectedPlaceholder ? selectedPlaceholder.note : 'No operator workspace is shown yet.'}
-                </strong>
-                <p>
-                  {selectedPlaceholder
-                    ? `The workspace below now shows the core operating sections for this ${itemName}.`
-                    : 'Choose a role card to unlock Missions, Context, Memory, and Outputs.'}
-                </p>
-              </div>
-            </div>
 
-            <div className="zibz-card-rail" aria-label={`${selectedRole} ${sectionName} slots`}>
-              {visiblePlaceholders.map((entry) => {
-                const isActive = entry.id === selectedPlaceholder?.id
+                <span className="zs-bot" aria-hidden="true">
+                  <span className="zs-bot-antenna is-left" />
+                  <span className="zs-bot-antenna is-right" />
+                  <span className="zs-bot-helmet">
+                    <span className="zs-bot-face">{card.icon}</span>
+                  </span>
+                  <span className="zs-bot-ear is-left" />
+                  <span className="zs-bot-ear is-right" />
+                  <span className="zs-bot-torso" />
+                  <span className="zs-bot-arm is-left" />
+                  <span className="zs-bot-arm is-right" />
+                  <span className="zs-bot-leg is-left" />
+                  <span className="zs-bot-leg is-right" />
+                  <span className="zs-bot-foot is-left" />
+                  <span className="zs-bot-foot is-right" />
+                  <span className="zs-bot-tool" />
+                </span>
 
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    aria-pressed={isActive}
-                    className={`zibz-rail-card${isActive ? ' is-active' : ''}`}
-                    style={getZibCardStyle(entry)}
-                    onClick={() => handleZibSelect(entry)}
-                  >
-                    <span className="zibz-rail-chip">{sectionName}</span>
+                <span className="zs-choice-copy">
+                  <span className="zs-choice-heading">
+                    <span className="zs-choice-icon">{card.icon}</span>
+                    <strong>{card.title}</strong>
+                  </span>
+                  <span className="zs-choice-description">{card.description}</span>
+                  <span className="zs-choice-separator" />
+                  <span className="zs-choice-action">
+                    <span>Select ZiB</span>
+                    <span aria-hidden="true">›</span>
+                  </span>
+                  <span className="zs-choice-meta">
+                    {roleProfiles.length} operators / {load}% {readiness.toLowerCase()}
+                  </span>
+                </span>
+              </button>
+            )
+          })}
+        </section>
 
-                    <div className="zibz-rail-art">
-                      {entry.imageSrc ? (
-                        <img className="zibz-rail-image" src={entry.imageSrc} alt={entry.name} />
-                      ) : (
-                        <div className="zibz-rail-avatar" aria-hidden="true">
-                          <span>{getPlaceholderInitials(entry.name)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="zibz-rail-tag">
-                      <strong>{entry.name}</strong>
-                      <span>{entry.role}</span>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
+        <section className="zs-active-summary" aria-label="Active ZiB summary">
+          <div className="zs-summary-mark" style={{ '--zib-accent': activeRoleCopy.accent } as CSSProperties}>
+            <span>{activeRoleCopy.icon}</span>
           </div>
-        </div>
-      </Panel>
-
-      {selectedPlaceholder && activeWorkspace ? (
-        <Panel
-          title={`${selectedPlaceholder.name} Workspace`}
-          eyebrow={`Unlocked after ${itemName} selection`}
-          className="minimal-panel"
-        >
-          <div className="zibz-workspace-shell" style={getZibCardStyle(selectedPlaceholder)}>
-            <aside className="zibz-workspace-nav" aria-label={`${sectionName} workspace sections`}>
-              {(
-                Object.entries(WORKSPACE_SECTIONS) as Array<
-                  [ZibWorkspaceSection, WorkspaceSectionCopy]
-                >
-              ).map(([sectionId, section]) => (
-                <button
-                  key={sectionId}
-                  type="button"
-                  className={`zibz-workspace-nav-card${sectionId === activeSection ? ' is-active' : ''}`}
-                  onClick={() => setActiveSection(sectionId)}
-                >
-                  <span className="surface-label">{section.eyebrow}</span>
-                  <strong>{section.label}</strong>
-                  <p>{section.title}</p>
-                </button>
-              ))}
-            </aside>
-
-            <section className="zibz-workspace-stage">
-              <div className="zibz-workspace-head">
-                <div>
-                  <span className="surface-label">{activeWorkspace.eyebrow}</span>
-                  <h3>{activeWorkspace.title}</h3>
-                </div>
-                <span className="status-badge status-active">operator profile</span>
-              </div>
-
-              <p className="zibz-workspace-description">{activeWorkspace.description}</p>
-
-              <div className="zibz-workspace-meta">
-                <div>
-                  <span>{itemName}</span>
-                  <strong>{selectedPlaceholder.name}</strong>
-                </div>
-                <div>
-                  <span>Role</span>
-                  <strong>{selectedPlaceholder.role}</strong>
-                </div>
-                <div>
-                  <span>Section</span>
-                  <strong>{activeWorkspace.label}</strong>
-                </div>
-              </div>
-
-              <div className="zibz-workspace-note-grid">
-                {activeWorkspace.notes.map((note) => (
-                  <article key={note} className="record-card">
-                    <span className="surface-label">{activeWorkspace.label}</span>
-                    <strong>{note}</strong>
-                    <p>{selectedPlaceholder.name} owns this part of the operating loop.</p>
-                  </article>
-                ))}
-              </div>
-            </section>
-          </div>
-        </Panel>
-      ) : (
-        <Panel title={`${itemName} Workspace Locked`} eyebrow="Selection required" className="minimal-panel">
-          <div className="zibz-workspace-empty">
-            <strong>Choose a {itemName} card first.</strong>
+          <div className="zs-summary-copy">
+            <h2>One ZiB. One Focus. Maximum Impact.</h2>
             <p>
-              The workspace stays gated until a role is selected, then reveals the operating loop for that {itemName}.
+              {roleDescriptions[selectedRole]} {getRoleProfileSummary(activeProfiles)}
+              {activeProfiles.length ? ' are ready inside this lane.' : ''}
             </p>
           </div>
-        </Panel>
-      )}
+          <div className="zs-summary-state">
+            <span>Your Active ZiB</span>
+            <strong>{selectedRole}</strong>
+            <em>{activeReadiness}</em>
+          </div>
+        </section>
+
+        <section
+          className="zs-workspace-panel"
+          style={
+            {
+              '--zib-accent': activeRoleCopy.accent,
+              '--zib-secondary': activeRoleCopy.secondary,
+            } as CSSProperties
+          }
+          aria-label={`${selectedRole} workspace`}
+        >
+          <div className="zs-workspace-head">
+            <div>
+              <span>{sectionName} workspace</span>
+              <h2>{selectedRole} Workspace</h2>
+            </div>
+            <nav className="zs-workspace-nav" aria-label="Workspace sections">
+              {(Object.entries(WORKSPACE_SECTIONS) as Array<[ZibWorkspaceSection, WorkspaceSectionCopy]>).map(
+                ([sectionId, section]) => (
+                  <button
+                    key={sectionId}
+                    type="button"
+                    className={`zs-workspace-tab ${sectionId === activeSection ? 'is-active' : ''}`}
+                    onClick={() => setActiveSection(sectionId)}
+                  >
+                    {section.label}
+                  </button>
+                ),
+              )}
+            </nav>
+          </div>
+
+          <div className="zs-workspace-grid">
+            <article className="zs-workspace-primary">
+              <span>{activeWorkspace.eyebrow}</span>
+              <h3>{activeWorkspace.title}</h3>
+              <p>{activeWorkspace.description}</p>
+              <div className="zs-workspace-note-list">
+                {activeWorkspace.notes.map((note) => (
+                  <span key={note}>{note}</span>
+                ))}
+              </div>
+            </article>
+
+            <div className="zs-operator-list">
+              {activeProfiles.slice(0, ROLE_OPERATOR_LIMIT).map((profile) => (
+                <article key={profile.id} className="zs-operator-mini">
+                  <span className="zs-operator-avatar">{getPlaceholderInitials(profile.name)}</span>
+                  <div>
+                    <strong>{profile.name}</strong>
+                    <p>{profile.role}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   )
 }

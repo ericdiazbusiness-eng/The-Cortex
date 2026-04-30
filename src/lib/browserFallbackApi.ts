@@ -6,7 +6,12 @@ import {
   type CortexBridge,
   type CortexAuditEvent,
   type CortexCommandResult,
+  type CortexDatabaseStatus,
   type CortexDashboardSnapshot,
+  type CortexVoiceActionConfirmation,
+  type CortexVoiceActionPrepared,
+  type CortexVoiceActionRequest,
+  type CortexVoiceActionResult,
   type CortexWorkflow,
   type CortexWorkflowAsset,
   type CortexWorkflowAssetDownloadRequest,
@@ -25,6 +30,17 @@ import {
 const clone = <T,>(value: T) => JSON.parse(JSON.stringify(value)) as T
 
 const isoNow = () => new Date().toISOString()
+
+const compactAuditValue = (value: unknown, limit = 420) => {
+  let serialized: string
+  try {
+    serialized = JSON.stringify(value)
+  } catch {
+    serialized = String(value)
+  }
+
+  return serialized.length > limit ? `${serialized.slice(0, limit - 3)}...` : serialized
+}
 
 const bytesFromBase64 = (value: string) => {
   try {
@@ -122,6 +138,7 @@ export const createBrowserFallbackApi = (): CortexBridge => {
   let snapshot: CortexDashboardSnapshot = clone(DEFAULT_FALLBACK_DATA)
   let businessSnapshot = clone(DEFAULT_BUSINESS_FALLBACK_DATA)
   let realtimeDebugEntries: CortexRealtimeDebugEntry[] = []
+  const pendingVoiceActions = new Map<string, CortexVoiceActionPrepared>()
   snapshot = {
     ...snapshot,
     gateway: {
@@ -152,12 +169,243 @@ export const createBrowserFallbackApi = (): CortexBridge => {
           dashboard: clone(snapshot),
         }
 
-  return {
+  const getDatabaseStatus = (): CortexDatabaseStatus => ({
+    configured: false,
+    connected: false,
+    source: 'browser_fallback',
+    checkedAt: isoNow(),
+    error: null,
+    workspaces: [
+      {
+        workspace: 'cortex',
+        source: 'browser_fallback',
+        entityCount:
+          snapshot.missions.length +
+          snapshot.approvals.length +
+          snapshot.agentLanes.length +
+          snapshot.vaultEntries.length +
+          snapshot.workflows.length +
+          snapshot.drops.length +
+          snapshot.studioAssets.length +
+          snapshot.integrationMonitors.length,
+        stale: false,
+      },
+      {
+        workspace: 'business',
+        source: 'browser_fallback',
+        entityCount:
+          businessSnapshot.metrics.length +
+          businessSnapshot.relationships.length +
+          businessSnapshot.queue.length +
+          businessSnapshot.sections.length,
+        stale: false,
+      },
+    ],
+    tables: [
+      {
+        name: 'browser_fallback',
+        configured: true,
+        connected: true,
+        readOnly: false,
+        recordCount: null,
+        lastCheckedAt: isoNow(),
+        error: null,
+      },
+    ],
+  })
+
+  const makeVoiceActionId = () =>
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? `voice-action-${crypto.randomUUID()}`
+      : `voice-action-${Date.now()}`
+
+  const executePreparedVoiceAction = async (
+    prepared: CortexVoiceActionPrepared,
+  ): Promise<unknown> => {
+    switch (prepared.action) {
+      case 'run_workspace_command': {
+        const commandId =
+          typeof prepared.parameters.commandId === 'string'
+            ? prepared.parameters.commandId
+            : ''
+        const context =
+          typeof prepared.parameters.context === 'string'
+            ? prepared.parameters.context
+            : prepared.reason ?? undefined
+        if (!commandId) {
+          throw new Error('run_workspace_command requires commandId.')
+        }
+        return api.runWorkspaceCommand(prepared.workspace, commandId, context)
+      }
+      case 'refresh_workspace':
+        return getWorkspaceSnapshot(prepared.workspace)
+      case 'delete_workflow': {
+        const workflowId =
+          typeof prepared.parameters.workflowId === 'string'
+            ? prepared.parameters.workflowId
+            : ''
+        if (!workflowId) {
+          throw new Error('delete_workflow requires workflowId.')
+        }
+        await api.deleteWorkflow(workflowId)
+        return {
+          ok: true,
+          workflowId,
+        }
+      }
+      case 'create_workflow':
+        return api.createWorkflow(prepared.parameters as Parameters<CortexBridge['createWorkflow']>[0])
+      case 'update_workflow':
+        return api.updateWorkflow(prepared.parameters as Parameters<CortexBridge['updateWorkflow']>[0])
+      default:
+        throw new Error(`Unsupported voice action: ${prepared.action}`)
+    }
+  }
+
+  const api: CortexBridge = {
     async getWorkspaceSnapshot(workspace) {
       return getWorkspaceSnapshot(workspace)
     },
     async getDashboardSnapshot() {
       return clone(snapshot)
+    },
+    async getDatabaseStatus() {
+      return getDatabaseStatus()
+    },
+    async prepareVoiceAction(payload: CortexVoiceActionRequest) {
+      const actionId = makeVoiceActionId()
+      const prepared: CortexVoiceActionPrepared = {
+        actionId,
+        action: payload.action,
+        workspace: payload.workspace,
+        parameters: clone(payload.parameters),
+        reason: payload.reason?.trim() || null,
+        transcript: payload.transcript?.trim() || null,
+        requiresConfirmation: true,
+        expiresAt: new Date(Date.now() + 120_000).toISOString(),
+        summary: `${payload.action} prepared for ${payload.workspace}.`,
+      }
+      pendingVoiceActions.set(actionId, prepared)
+      await api.recordRealtimeLog({
+        channel: 'realtime',
+        severity: 'info',
+        message:
+          `Prepared voice action ${prepared.action} (${prepared.actionId}) in ${prepared.workspace}. ` +
+          `transcript=${compactAuditValue(prepared.transcript)}; ` +
+          `parameters=${compactAuditValue(prepared.parameters)}.`,
+        accent: 'cyan',
+      })
+      return clone(prepared)
+    },
+    async confirmVoiceAction(payload: CortexVoiceActionConfirmation): Promise<CortexVoiceActionResult> {
+      const prepared = pendingVoiceActions.get(payload.actionId)
+      if (!prepared) {
+        return {
+          actionId: payload.actionId,
+          action: 'refresh_workspace',
+          workspace: 'cortex',
+          ok: false,
+          confirmed: payload.confirmed,
+          canceled: !payload.confirmed,
+          result: null,
+          error: 'Prepared voice action was not found or already resolved.',
+          auditedAt: isoNow(),
+        }
+      }
+
+      pendingVoiceActions.delete(payload.actionId)
+      if (new Date(prepared.expiresAt).getTime() < Date.now()) {
+        await api.recordRealtimeLog({
+          channel: 'realtime',
+          severity: 'warning',
+          message:
+            `Expired voice action ${prepared.action} (${prepared.actionId}) in ${prepared.workspace}. ` +
+            `transcript=${compactAuditValue(payload.transcript ?? prepared.transcript)}; ` +
+            `parameters=${compactAuditValue(prepared.parameters)}.`,
+          accent: 'amber',
+        })
+        return {
+          actionId: prepared.actionId,
+          action: prepared.action,
+          workspace: prepared.workspace,
+          ok: false,
+          confirmed: payload.confirmed,
+          canceled: true,
+          result: null,
+          error: 'Prepared voice action expired before confirmation.',
+          auditedAt: isoNow(),
+        }
+      }
+
+      if (!payload.confirmed) {
+        await api.recordRealtimeLog({
+          channel: 'realtime',
+          severity: 'info',
+          message:
+            `Canceled voice action ${prepared.action} (${prepared.actionId}) in ${prepared.workspace}. ` +
+            `transcript=${compactAuditValue(payload.transcript ?? prepared.transcript)}; ` +
+            `parameters=${compactAuditValue(prepared.parameters)}.`,
+          accent: 'amber',
+        })
+        return {
+          actionId: prepared.actionId,
+          action: prepared.action,
+          workspace: prepared.workspace,
+          ok: true,
+          confirmed: false,
+          canceled: true,
+          result: null,
+          error: null,
+          auditedAt: isoNow(),
+        }
+      }
+
+      try {
+        const result = await executePreparedVoiceAction(prepared)
+        await api.recordRealtimeLog({
+          channel: 'realtime',
+          severity: 'success',
+          message:
+            `Confirmed voice action ${prepared.action} (${prepared.actionId}) in ${prepared.workspace}. ` +
+            `transcript=${compactAuditValue(payload.transcript ?? prepared.transcript)}; ` +
+            `parameters=${compactAuditValue(prepared.parameters)}; ` +
+            `result=${compactAuditValue(result)}.`,
+          accent: 'green',
+        })
+        return {
+          actionId: prepared.actionId,
+          action: prepared.action,
+          workspace: prepared.workspace,
+          ok: true,
+          confirmed: true,
+          canceled: false,
+          result,
+          error: null,
+          auditedAt: isoNow(),
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Voice action failed.'
+        await api.recordRealtimeLog({
+          channel: 'realtime',
+          severity: 'warning',
+          message:
+            `Voice action ${prepared.action} (${prepared.actionId}) failed in ${prepared.workspace}. ` +
+            `transcript=${compactAuditValue(payload.transcript ?? prepared.transcript)}; ` +
+            `parameters=${compactAuditValue(prepared.parameters)}; error=${message}.`,
+          accent: 'amber',
+        })
+        return {
+          actionId: prepared.actionId,
+          action: prepared.action,
+          workspace: prepared.workspace,
+          ok: false,
+          confirmed: true,
+          canceled: false,
+          result: null,
+          error: message,
+          auditedAt: isoNow(),
+        }
+      }
     },
     async listAgents() {
       return clone(snapshot.agentLanes)
@@ -367,4 +615,6 @@ export const createBrowserFallbackApi = (): CortexBridge => {
       return () => {}
     },
   }
+
+  return api
 }

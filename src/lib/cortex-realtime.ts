@@ -2,6 +2,7 @@ import {
   DEFAULT_REALTIME_STATE,
   getRealtimeModeProfile,
   type CortexBridge,
+  type CortexDatabaseEntityType,
   type CortexRealtimeDebugEntryInput,
   type CortexRealtimeMode,
   type CortexRealtimeSessionRequest,
@@ -29,6 +30,8 @@ type JsonRecord = Record<string, unknown>
 
 type RealtimeEvent = {
   type?: string
+  transcript?: string
+  delta?: string
   response?: {
     output?: Array<{
       type?: string
@@ -113,6 +116,14 @@ const getDefaultUserMedia = async () => {
   return navigator.mediaDevices.getUserMedia({
     audio: buildMicrophoneConstraints(),
   })
+}
+
+const getDefaultRtcPeerConnection = () => {
+  if (typeof RTCPeerConnection === 'undefined') {
+    throw new Error('WebRTC peer connections are unavailable in this environment.')
+  }
+
+  return new RTCPeerConnection()
 }
 
 const buildMicrophoneConstraints = () => ({
@@ -313,13 +324,38 @@ export const buildRealtimeToolDefinitions = (
 ): CortexRealtimeToolDefinition[] => {
   const snapshot =
     workspaceSnapshot?.workspace === 'cortex' ? workspaceSnapshot.dashboard : null
-  const activeWorkspace = workspaceSnapshot?.workspace ?? 'cortex'
   const commandIds = workspaceSnapshot?.dashboard.commands.map((command) => command.id) ?? []
   const agentIds = snapshot?.agentLanes.map((lane) => lane.id) ?? []
   const memoryIds = snapshot?.vaultEntries.map((entry) => entry.id) ?? []
   const workflowIds = snapshot?.workflows.map((workflow) => workflow.id) ?? []
   const jobIds = snapshot?.drops.map((drop) => drop.id) ?? []
   const marketingMetricIds = snapshot?.studioAssets.map((asset) => asset.id) ?? []
+  const workspaceOptions = ['current', 'cortex', 'business', 'all'] as const
+  const routeOptions = [
+    ...getWorkspaceRouteOptions('cortex'),
+    ...getWorkspaceRouteOptions('business'),
+  ]
+  const entityTypes: CortexDatabaseEntityType[] = [
+    'mission',
+    'approval',
+    'operator',
+    'memory',
+    'workflow',
+    'drop',
+    'lore',
+    'studio_asset',
+    'integration',
+    'usage_indicator',
+    'audit_event',
+    'economy_metric',
+    'community_signal',
+    'business_metric',
+    'business_relationship',
+    'business_queue_item',
+    'business_section',
+    'command',
+    'system',
+  ]
   const nullableStringSchema = (description: string, enumValues?: string[]) => ({
     type: ['string', 'null'],
     description,
@@ -329,13 +365,58 @@ export const buildRealtimeToolDefinitions = (
     type: ['number', 'null'],
     description,
   })
+  const workspaceSchema = {
+    type: 'string',
+    description:
+      'Workspace scope. Use current for the active workspace, cortex for Scavenjer operations, business for Business OS, or all for read-only aggregate searches.',
+    enum: workspaceOptions,
+  }
+  const entityTypeSchema = {
+    type: ['string', 'null'],
+    description: 'Optional database entity type to query or focus.',
+    enum: [...entityTypes, null],
+  }
+  const stringEnumOrOpen = (description: string, enumValues: string[]) => ({
+    type: 'string',
+    description,
+    ...(enumValues.length ? { enum: enumValues } : {}),
+  })
 
   const baseTools: CortexRealtimeToolDefinition[] = [
     {
       type: 'function',
       strict: true,
+      name: 'get_workspace_snapshot',
+      description:
+        'Return structured workspace data for Cortex, Business, the current workspace, or both workspaces.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspace: workspaceSchema,
+        },
+        required: ['workspace'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
       name: 'get_dashboard_snapshot',
-      description: 'Return the full structured snapshot for the current workspace session.',
+      description:
+        'Legacy alias for returning the full structured snapshot for the current workspace session.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'get_route_context',
+      description:
+        'Return the current route, workspace, UI focus, selected records, voice mode, and page-local context.',
       parameters: {
         type: 'object',
         properties: {},
@@ -347,7 +428,73 @@ export const buildRealtimeToolDefinitions = (
       type: 'function',
       strict: true,
       name: 'get_ui_context',
-      description: 'Return the current route, workspace, and page-local context from the UI.',
+      description: 'Legacy alias for the current route, workspace, UI focus, and page context.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'get_database_status',
+      description:
+        'Return database and fixture health, Supabase readiness, available workspace sources, and table read status.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'list_database_entities',
+      description:
+        'List typed records from Cortex or Business data, covering missions, approvals, operators, memories, workflows, drops, economy, community, studio, integrations, relationships, queue items, commands, and system state.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspace: workspaceSchema,
+          entityType: entityTypeSchema,
+          query: nullableStringSchema('Optional free-text search filter.'),
+          status: nullableStringSchema('Optional status/state/stage filter.'),
+          limit: nullableNumberSchema('Maximum number of records to return.'),
+        },
+        required: ['workspace', 'entityType', 'query', 'status', 'limit'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'search_database_entities',
+      description:
+        'Search across typed Cortex and Business records by free-text query. Use this before focused lookup when the record id is unknown.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspace: workspaceSchema,
+          query: {
+            type: 'string',
+            description: 'Free-text query to search for.',
+          },
+          entityType: entityTypeSchema,
+          limit: nullableNumberSchema('Maximum number of matching records to return.'),
+        },
+        required: ['workspace', 'query', 'entityType', 'limit'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'get_focused_record',
+      description:
+        'Return the currently focused record from UI focus, including the route and resolved typed entity when available.',
       parameters: {
         type: 'object',
         properties: {},
@@ -359,14 +506,15 @@ export const buildRealtimeToolDefinitions = (
       type: 'function',
       strict: true,
       name: 'navigate_ui',
-      description: 'Navigate the dashboard to a specific page when it helps reveal the requested information.',
+      description:
+        'Navigate the dashboard to an existing Cortex or Business route when it helps reveal the requested information.',
       parameters: {
         type: 'object',
         properties: {
           route: {
             type: 'string',
             description: 'Dashboard route to open.',
-            enum: getWorkspaceRouteOptions(activeWorkspace),
+            enum: routeOptions,
           },
         },
         required: ['route'],
@@ -376,17 +524,95 @@ export const buildRealtimeToolDefinitions = (
     {
       type: 'function',
       strict: true,
-      name: 'run_command',
+      name: 'focus_record',
       description:
-        'Run one of the currently available workspace commands. Use only when the user explicitly asks to execute an action.',
+        'Focus a typed Cortex or Business record in the existing UI without adding routes or navigation items.',
       parameters: {
         type: 'object',
         properties: {
-          commandId: {
+          workspace: workspaceSchema,
+          entityType: {
             type: 'string',
-            description: 'Command ID to execute.',
-            enum: commandIds,
+            description: 'Typed entity to focus.',
+            enum: entityTypes,
           },
+          recordId: {
+            type: 'string',
+            description: 'Record ID to focus.',
+          },
+        },
+        required: ['workspace', 'entityType', 'recordId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'prepare_voice_action',
+      description:
+        'Prepare a whitelisted mutating voice action. This never executes the mutation; it returns an action id that must be confirmed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            description: 'Whitelisted action type to prepare.',
+            enum: [
+              'run_workspace_command',
+              'refresh_workspace',
+              'create_workflow',
+              'update_workflow',
+              'delete_workflow',
+            ],
+          },
+          workspace: {
+            type: 'string',
+            description: 'Workspace where the action will run.',
+            enum: ['cortex', 'business'],
+          },
+          parameters: {
+            type: 'object',
+            description: 'Action-specific parameters.',
+            additionalProperties: true,
+          },
+          reason: nullableStringSchema('Short user-facing reason for the prepared action.'),
+        },
+        required: ['action', 'workspace', 'parameters', 'reason'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'confirm_voice_action',
+      description:
+        'Confirm or cancel a previously prepared voice action. Mutations only execute through this confirmation step.',
+      parameters: {
+        type: 'object',
+        properties: {
+          actionId: {
+            type: 'string',
+            description: 'Prepared action id returned by prepare_voice_action.',
+          },
+          confirmed: {
+            type: 'boolean',
+            description: 'True executes the prepared action; false cancels it.',
+          },
+        },
+        required: ['actionId', 'confirmed'],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: 'function',
+      strict: true,
+      name: 'run_command',
+      description:
+        'Legacy action entrypoint. It prepares a run_workspace_command action and returns an action id for explicit confirmation.',
+      parameters: {
+        type: 'object',
+        properties: {
+          commandId: stringEnumOrOpen('Command ID to prepare for execution.', commandIds),
           context: nullableStringSchema('Short explanation of why this command is being run.'),
         },
         required: ['commandId', 'context'],
@@ -394,10 +620,6 @@ export const buildRealtimeToolDefinitions = (
       },
     },
   ]
-
-  if (!snapshot) {
-    return baseTools
-  }
 
   return [
     ...baseTools,
@@ -501,7 +723,7 @@ export const buildRealtimeToolDefinitions = (
           agentId: {
             type: 'string',
             description: 'Lane ID to focus.',
-            enum: agentIds,
+            ...(agentIds.length ? { enum: agentIds } : {}),
           },
         },
         required: ['agentId'],
@@ -519,7 +741,7 @@ export const buildRealtimeToolDefinitions = (
           memoryId: {
             type: 'string',
             description: 'Vault entry ID to focus.',
-            enum: memoryIds,
+            ...(memoryIds.length ? { enum: memoryIds } : {}),
           },
         },
         required: ['memoryId'],
@@ -537,7 +759,7 @@ export const buildRealtimeToolDefinitions = (
           workflowId: {
             type: 'string',
             description: 'Workflow ID to focus.',
-            enum: workflowIds,
+            ...(workflowIds.length ? { enum: workflowIds } : {}),
           },
         },
         required: ['workflowId'],
@@ -555,7 +777,7 @@ export const buildRealtimeToolDefinitions = (
           jobId: {
             type: 'string',
             description: 'Drop ID to focus.',
-            enum: jobIds,
+            ...(jobIds.length ? { enum: jobIds } : {}),
           },
         },
         required: ['jobId'],
@@ -592,7 +814,7 @@ export const buildRealtimeToolDefinitions = (
           metricId: {
             type: 'string',
             description: 'Studio asset ID to highlight.',
-            enum: marketingMetricIds,
+            ...(marketingMetricIds.length ? { enum: marketingMetricIds } : {}),
           },
         },
         required: ['metricId'],
@@ -652,7 +874,8 @@ export const buildRealtimeInstructions = (
 
   return [
     'You are The Cortex voice copilot inside a live dashboard.',
-    'This product intentionally uses a chained voice pipeline: capture, transcribe, reason with tools, then optionally synthesize speech.',
+    'Use the low-latency voice pipeline as the primary runtime: OpenAI transcription, GPT reasoning, and ElevenLabs speech output when the selected mode speaks.',
+    'GPT Realtime over WebRTC remains available for explicit realtime profiles and recovery paths, but it is not the default cost-efficient voice path.',
     'Use structured tools and current UI context as the source of truth.',
     'Do not infer facts from visuals alone.',
     replyStyle,
@@ -660,10 +883,14 @@ export const buildRealtimeInstructions = (
     'For current-state questions, call the relevant tools before answering.',
     navigationGuidance,
     outputGuidance,
-    'When the user asks to execute an action, say what you are running before you call run_command.',
-    'The user has allowed full command access, but you should still only run commands that match their request.',
+    'For data questions, prefer get_route_context, get_workspace_snapshot, list_database_entities, search_database_entities, get_focused_record, and get_database_status.',
+    'For UI movement, use navigate_ui or focus_record only across existing Cortex and Business routes.',
+    'For mutating actions, never execute directly. Use prepare_voice_action first, explain the pending action, then call confirm_voice_action only after the user explicitly confirms.',
+    'Never expose or request raw SQL writes. Only use whitelisted app-safe actions.',
     `Current realtime mode: ${modeProfile.id}.`,
     `Runtime: ${modeProfile.runtime}.`,
+    `Realtime model: ${modeProfile.realtimeModel ?? 'default realtime model'}.`,
+    `Fallback text model: ${modeProfile.textModel ?? 'default text model'}.`,
     `Mode silent output: ${modeProfile.silentOutput ? 'enabled' : 'disabled'}.`,
     `Mode tool priority: ${describeToolPriority(modeProfile.preferredToolGroups)}.`,
     `Mode navigation policy: ${modeProfile.navigationPolicy}.`,
@@ -680,25 +907,30 @@ export const buildRealtimeSessionRequest = (
   workspaceSnapshot: WorkspaceSnapshot | null,
   viewContext: CortexViewContext,
   realtimeMode: CortexRealtimeMode,
-): CortexRealtimeSessionRequest => ({
-  instructions: buildRealtimeInstructions(workspaceSnapshot, viewContext, realtimeMode),
-  tools: buildRealtimeToolDefinitions(workspaceSnapshot),
-  context: viewContext,
-  mode: realtimeMode,
-  runtime: getRealtimeModeProfile(realtimeMode).runtime,
-  textModel: getRealtimeModeProfile(realtimeMode).textModel,
-  transcriptionProvider: getRealtimeModeProfile(realtimeMode).transcriptionProvider,
-  transcriptionModel: getRealtimeModeProfile(realtimeMode).transcriptionModel,
-  speechProvider: getRealtimeModeProfile(realtimeMode).speechProvider,
-  speechModel: getRealtimeModeProfile(realtimeMode).speechModel,
-  voice: getRealtimeModeProfile(realtimeMode).voice,
-  voiceSettings: getRealtimeModeProfile(realtimeMode).voiceSettings,
-  pronunciationDictionaries: getRealtimeModeProfile(realtimeMode).pronunciationDictionaries,
-  silentOutput: getRealtimeModeProfile(realtimeMode).silentOutput,
-  navigationPolicy: getRealtimeModeProfile(realtimeMode).navigationPolicy,
-  toolPreference: getRealtimeModeProfile(realtimeMode).toolPreference,
-  preferredToolGroups: getRealtimeModeProfile(realtimeMode).preferredToolGroups,
-})
+): CortexRealtimeSessionRequest => {
+  const profile = getRealtimeModeProfile(realtimeMode)
+
+  return {
+    instructions: buildRealtimeInstructions(workspaceSnapshot, viewContext, realtimeMode),
+    tools: buildRealtimeToolDefinitions(workspaceSnapshot),
+    context: viewContext,
+    mode: realtimeMode,
+    runtime: profile.runtime,
+    realtimeModel: profile.realtimeModel,
+    textModel: profile.textModel,
+    transcriptionProvider: profile.transcriptionProvider,
+    transcriptionModel: profile.transcriptionModel,
+    speechProvider: profile.speechProvider,
+    speechModel: profile.speechModel,
+    voice: profile.voice,
+    voiceSettings: profile.voiceSettings,
+    pronunciationDictionaries: profile.pronunciationDictionaries,
+    silentOutput: profile.silentOutput,
+    navigationPolicy: profile.navigationPolicy,
+    toolPreference: profile.toolPreference,
+    preferredToolGroups: profile.preferredToolGroups,
+  }
+}
 
 const blobToBase64 = async (blob: Blob) => {
   const bytes = new Uint8Array(await blob.arrayBuffer())
@@ -711,10 +943,10 @@ const blobToBase64 = async (blob: Blob) => {
   return btoa(binary)
 }
 
-const buildRealtimeResponseCreateEvent = () => ({
+const buildRealtimeResponseCreateEvent = (silentOutput = false) => ({
   type: 'response.create',
   response: {
-    output_modalities: ['audio'],
+    output_modalities: silentOutput ? ['text'] : ['audio'],
   },
 })
 
@@ -798,6 +1030,8 @@ export class CortexRealtimeController {
 
   private readonly realtimeTranscriptionSocketFactory: (url: string) => RealtimeTranscriptionSocket
 
+  private readonly rtcPeerConnectionFactory: () => RTCPeerConnection
+
   private readonly onStateChange: (state: CortexRealtimeState) => void
 
   private readonly onToolCall: ToolCallHandler
@@ -805,6 +1039,8 @@ export class CortexRealtimeController {
   private activeRequest: CortexRealtimeSessionRequest | null = null
 
   private resources: ControllerResources | null = null
+
+  private pendingRealtimeEvents: JsonRecord[] = []
 
   private state: CortexRealtimeState = DEFAULT_REALTIME_STATE
 
@@ -833,6 +1069,7 @@ export class CortexRealtimeController {
       options.mediaRecorderFactory ?? getDefaultMediaRecorderFactory
     this.realtimeTranscriptionSocketFactory =
       options.realtimeTranscriptionSocketFactory ?? ((url: string) => new WebSocket(url))
+    this.rtcPeerConnectionFactory = options.rtcPeerConnectionFactory ?? getDefaultRtcPeerConnection
     this.onStateChange = dependencies.onStateChange
     this.onToolCall = dependencies.onToolCall
   }
@@ -930,6 +1167,30 @@ export class CortexRealtimeController {
     })
   }
 
+  private markLatency(key: keyof NonNullable<CortexRealtimeState['latency']>) {
+    const latency = {
+      sessionStartedAt: null,
+      speechStartedAt: null,
+      speechStoppedAt: null,
+      responseStartedAt: null,
+      toolStartedAt: null,
+      toolCompletedAt: null,
+      firstAudioAt: null,
+      cancelledAt: null,
+      fallbackAt: null,
+      ...(this.state.latency ?? {}),
+      [key]: isoNow(),
+    }
+
+    this.setState(
+      withVisualState({
+        ...this.state,
+        latency,
+        lastEventAt: isoNow(),
+      }),
+    )
+  }
+
   async toggle() {
     this.debugLog('Toggle requested.', {
       connecting: this.state.status === 'connecting',
@@ -956,7 +1217,8 @@ export class CortexRealtimeController {
     this.debugLog('Start requested.', {
       mode: request.mode,
       runtime: request.runtime,
-      model: request.textModel ?? null,
+      realtimeModel: request.realtimeModel ?? null,
+      textModel: request.textModel ?? null,
       preferredToolGroups: request.preferredToolGroups,
       requestedSessionId: sessionId,
     })
@@ -969,15 +1231,34 @@ export class CortexRealtimeController {
         sessionAttemptId: sessionId,
         status: 'connecting',
         stage: 'ready',
+        latency: {
+          sessionStartedAt: isoNow(),
+          speechStartedAt: null,
+          speechStoppedAt: null,
+          responseStartedAt: null,
+          toolStartedAt: null,
+          toolCompletedAt: null,
+          firstAudioAt: null,
+          cancelledAt: null,
+          fallbackAt: null,
+        },
         lastEventAt: isoNow(),
       }),
     )
     await this.recordLog(
       'info',
-      `Voice pipeline connection requested for ${request.mode} (${request.textModel ?? 'default'}).`,
+      request.runtime === 'gpt_realtime_webrtc'
+        ? `Realtime voice connection requested for ${request.mode} (${request.realtimeModel ?? 'default'}).`
+        : `Voice pipeline connection requested for ${request.mode} (${request.textModel ?? 'default'}).`,
     )
 
     try {
+      if (request.runtime === 'gpt_realtime_webrtc') {
+        this.debugLog('Routing start into GPT Realtime WebRTC runtime.')
+        await this.startRealtimeWebRtc(version, request)
+        return
+      }
+
       this.debugLog('Routing start into chained voice pipeline.')
       await this.startToolVoice(version, request)
     } catch (error) {
@@ -986,6 +1267,40 @@ export class CortexRealtimeController {
           error: toErrorMessage(error),
         })
         return
+      }
+
+      if (request.runtime === 'gpt_realtime_webrtc') {
+        const fallbackRequest: CortexRealtimeSessionRequest = {
+          ...request,
+          runtime: 'voice_pipeline',
+        }
+        this.activeRequest = fallbackRequest
+        this.debugWarn('Realtime WebRTC start failed; falling back to chained voice pipeline.', {
+          error: toErrorMessage(error),
+        })
+        this.cleanupResources()
+        this.markLatency('fallbackAt')
+        await this.recordLog(
+          'warning',
+          `Realtime voice unavailable; using voice pipeline fallback. ${toErrorMessage(error)}`,
+          'amber',
+        )
+
+        try {
+          await this.startToolVoice(version, fallbackRequest)
+          return
+        } catch (fallbackError) {
+          if (!this.isCurrentVersion(version)) {
+            return
+          }
+          this.debugError('Fallback voice pipeline start failed.', {
+            error: toErrorMessage(fallbackError),
+          })
+          this.cleanupAllResources()
+          this.activeRequest = null
+          await this.transitionToError(toErrorMessage(fallbackError))
+          return
+        }
       }
 
       this.debugError('Start failed.', {
@@ -1033,7 +1348,133 @@ export class CortexRealtimeController {
   }
 
   async syncSession() {
-    this.debugLog('Session sync requested but skipped because the chained voice runtime injects context per turn.')
+    if (!this.activeRequest || this.activeRequest.runtime !== 'gpt_realtime_webrtc') {
+      this.debugLog('Session sync requested but skipped because the chained voice runtime injects context per turn.')
+      return
+    }
+
+    const latest = this.getSessionRequest()
+    this.activeRequest = {
+      ...latest,
+      mode: this.activeRequest.mode,
+      runtime: this.activeRequest.runtime,
+      realtimeModel: this.activeRequest.realtimeModel,
+      textModel: this.activeRequest.textModel,
+      voice: this.activeRequest.voice,
+      silentOutput: this.activeRequest.silentOutput,
+      navigationPolicy: this.activeRequest.navigationPolicy,
+      toolPreference: this.activeRequest.toolPreference,
+      preferredToolGroups: this.activeRequest.preferredToolGroups,
+    }
+
+    this.sendEvent({
+      type: 'session.update',
+      session: {
+        instructions: this.activeRequest.instructions,
+        tools: this.activeRequest.tools,
+        tool_choice: 'auto',
+      },
+    })
+    this.debugLog('Realtime session context/tools sync sent.', {
+      toolCount: this.activeRequest.tools.length,
+      route: this.activeRequest.context.route,
+    })
+  }
+
+  private async startRealtimeWebRtc(
+    version: number,
+    request: CortexRealtimeSessionRequest,
+  ) {
+    this.debugLog('Starting GPT Realtime WebRTC transport.', {
+      realtimeModel: request.realtimeModel ?? null,
+      voice: request.voice ?? null,
+      toolCount: request.tools.length,
+    })
+
+    const stream = await this.getUserMedia({
+      audio: buildMicrophoneConstraints(),
+    })
+    this.debugLog('Realtime microphone stream granted.', {
+      trackCount: stream.getTracks().length,
+    })
+
+    if (!this.isCurrentVersion(version)) {
+      stream.getTracks().forEach((track) => track.stop())
+      return
+    }
+
+    const audioElement = this.createPlaybackAudioElement()
+    const peerConnection = this.rtcPeerConnectionFactory()
+    const dataChannel = peerConnection.createDataChannel('oai-events')
+
+    dataChannel.addEventListener('open', this.handleDataChannelOpen)
+    dataChannel.addEventListener('message', this.handleDataChannelMessage)
+    dataChannel.addEventListener('close', this.handleUnexpectedChannelClose)
+    dataChannel.addEventListener('error', this.handleUnexpectedChannelError)
+
+    peerConnection.ontrack = (event) => {
+      const remoteStream =
+        event.streams?.[0] ??
+        (typeof MediaStream !== 'undefined' ? new MediaStream([event.track]) : null)
+      if (remoteStream) {
+        audioElement.srcObject = remoteStream
+      }
+      void audioElement.play().catch(() => {
+        this.debugWarn('Realtime remote audio playback could not auto-start.')
+      })
+    }
+
+    stream.getTracks().forEach((track) => {
+      peerConnection.addTrack(track, stream)
+    })
+
+    const resources: ControllerResources = {
+      audioElement,
+      dataChannel,
+      peerConnection,
+      stream,
+    }
+    this.resources = resources
+
+    const offer = await peerConnection.createOffer()
+    if (!offer.sdp) {
+      throw new Error('WebRTC offer did not include SDP.')
+    }
+    await peerConnection.setLocalDescription(offer)
+
+    const answerSdp = await this.api.createRealtimeCall(offer.sdp, request)
+    if (!this.isCurrentVersion(version)) {
+      this.cleanupResources(resources)
+      return
+    }
+
+    await peerConnection.setRemoteDescription({
+      type: 'answer',
+      sdp: answerSdp,
+    })
+
+    if (!this.isCurrentVersion(version)) {
+      this.cleanupResources(resources)
+      return
+    }
+
+    this.setState(
+      withVisualState({
+        ...this.state,
+        active: true,
+        status: dataChannel.readyState === 'open' ? 'listening' : 'connecting',
+        stage: 'ready',
+        error: null,
+        lastFailure: null,
+        lastEventAt: isoNow(),
+        lastCompletedStageAt: isoNow(),
+      }),
+    )
+    await this.recordLog(
+      'success',
+      `Realtime voice connected with ${request.realtimeModel ?? 'default realtime model'}.`,
+      'green',
+    )
   }
 
   private async abortActiveTurn(
@@ -2319,8 +2760,11 @@ export class CortexRealtimeController {
           ...this.getSessionRequest(),
           mode: this.activeRequest.mode,
           runtime: this.activeRequest.runtime,
+          realtimeModel: this.activeRequest.realtimeModel,
           textModel: this.activeRequest.textModel,
+          transcriptionProvider: this.activeRequest.transcriptionProvider,
           transcriptionModel: this.activeRequest.transcriptionModel,
+          speechProvider: this.activeRequest.speechProvider,
           speechModel: this.activeRequest.speechModel,
           voice: this.activeRequest.voice,
           silentOutput: this.activeRequest.silentOutput,
@@ -2424,6 +2868,18 @@ export class CortexRealtimeController {
         ...this.state,
         status: 'speaking',
         stage: 'speaking',
+        latency: {
+          sessionStartedAt: null,
+          speechStartedAt: null,
+          speechStoppedAt: null,
+          responseStartedAt: null,
+          toolStartedAt: null,
+          toolCompletedAt: null,
+          cancelledAt: null,
+          fallbackAt: null,
+          ...(this.state.latency ?? {}),
+          firstAudioAt: this.state.latency?.firstAudioAt ?? isoNow(),
+        },
         lastEventAt: isoNow(),
         lastCompletedStageAt: isoNow(),
       }),
@@ -2455,6 +2911,25 @@ export class CortexRealtimeController {
     await this.handleRealtimeEvent(payload)
   }
 
+  private readonly handleDataChannelOpen = () => {
+    this.debugLog('Realtime data channel opened.')
+    this.flushPendingRealtimeEvents()
+    if (!this.state.active) {
+      return
+    }
+    this.setState(
+      withVisualState({
+        ...this.state,
+        active: true,
+        status: 'listening',
+        stage: 'ready',
+        error: null,
+        lastEventAt: isoNow(),
+        lastCompletedStageAt: isoNow(),
+      }),
+    )
+  }
+
   private readonly handleUnexpectedChannelClose = async () => {
     if (!this.state.active && this.state.status !== 'connecting') {
       return
@@ -2475,6 +2950,7 @@ export class CortexRealtimeController {
     this.debugLog('Cleaning up all realtime resources.')
     this.cleanupResources()
     this.cleanupToolVoiceResources()
+    this.pendingRealtimeEvents = []
   }
 
   private cleanupResources(resources: ControllerResources | null = this.resources) {
@@ -2497,6 +2973,7 @@ export class CortexRealtimeController {
     resources.audioElement.removeEventListener('ended', this.handleAudioPause)
     resources.audioElement.srcObject = null
 
+    resources.dataChannel.removeEventListener('open', this.handleDataChannelOpen)
     resources.dataChannel.removeEventListener('message', this.handleDataChannelMessage)
     resources.dataChannel.removeEventListener('close', this.handleUnexpectedChannelClose)
     resources.dataChannel.removeEventListener('error', this.handleUnexpectedChannelError)
@@ -2598,12 +3075,13 @@ export class CortexRealtimeController {
         await this.recordLog('info', 'Realtime session created.')
         break
       case 'response.created':
+        this.markLatency('responseStartedAt')
         if (this.state.active && this.state.status !== 'executing') {
           this.setState(
             withVisualState({
-            ...this.state,
-            status: 'speaking',
-            lastEventAt: isoNow(),
+              ...this.state,
+              status: 'speaking',
+              lastEventAt: isoNow(),
             }),
           )
         }
@@ -2616,21 +3094,45 @@ export class CortexRealtimeController {
         if (this.state.active && this.state.status !== 'executing') {
           this.setState(
             withVisualState({
-            ...this.state,
-            status: 'listening',
-            lastEventAt: isoNow(),
+              ...this.state,
+              status: 'listening',
+              lastEventAt: isoNow(),
             }),
           )
         }
         await this.recordLog('info', 'Realtime session updated.')
         break
       case 'input_audio_buffer.speech_started':
+        this.markLatency('speechStartedAt')
         await this.recordLog('info', 'Realtime session detected speech input.')
         break
       case 'input_audio_buffer.speech_stopped':
+        this.markLatency('speechStoppedAt')
         await this.recordLog('info', 'Realtime session finished receiving speech input.')
         break
+      case 'conversation.item.input_audio_transcription.completed': {
+        const transcript = typeof event.transcript === 'string' ? event.transcript.trim() : ''
+        if (transcript) {
+          this.lastUserTranscript = transcript
+          this.setState({
+            ...this.state,
+            lastTranscriptPreview: truncateText(transcript),
+            lastEventAt: isoNow(),
+          })
+        }
+        await this.recordLog('info', 'Realtime user transcript completed.')
+        break
+      }
+      case 'response.output_audio_transcript.done':
+      case 'response.output_text.done':
       case 'response.audio_transcript.done':
+        if (typeof event.transcript === 'string' && event.transcript.trim()) {
+          this.setState({
+            ...this.state,
+            lastResponsePreview: truncateText(event.transcript),
+            lastEventAt: isoNow(),
+          })
+        }
         await this.recordLog('info', 'Realtime assistant transcript completed.')
         break
       case 'error':
@@ -2655,9 +3157,9 @@ export class CortexRealtimeController {
       if (this.state.active) {
         this.setState(
           withVisualState({
-          ...this.state,
-          status: 'listening',
-          lastEventAt: isoNow(),
+            ...this.state,
+            status: 'listening',
+            lastEventAt: isoNow(),
           }),
         )
       }
@@ -2665,11 +3167,13 @@ export class CortexRealtimeController {
     }
 
     for (const output of functionCalls) {
+      this.markLatency('toolStartedAt')
       this.debugLog('Executing response.done function call.', {
         callId: output.call_id,
         name: output.name,
       })
       const result = await this.executeFunctionCall(output)
+      this.markLatency('toolCompletedAt')
 
       this.sendEvent({
         type: 'conversation.item.create',
@@ -2684,7 +3188,7 @@ export class CortexRealtimeController {
       })
     }
 
-    this.sendEvent(buildRealtimeResponseCreateEvent())
+    this.sendEvent(buildRealtimeResponseCreateEvent(this.activeRequest?.silentOutput ?? false))
     this.debugLog('Requested follow-up realtime response after tool outputs.')
   }
 
@@ -2833,8 +3337,34 @@ export class CortexRealtimeController {
   }
 
   private sendEvent(event: JsonRecord) {
-    this.debugWarn('Skipped experimental realtime event because WebRTC is not the active product runtime.', {
-      eventType: typeof event.type === 'string' ? event.type : 'unknown',
+    const eventType = typeof event.type === 'string' ? event.type : 'unknown'
+    const dataChannel = this.resources?.dataChannel ?? null
+
+    if (!dataChannel || dataChannel.readyState !== 'open') {
+      this.pendingRealtimeEvents = [...this.pendingRealtimeEvents, event].slice(-20)
+      this.debugWarn('Queued realtime event because the data channel is not open.', {
+        eventType,
+        channelState: dataChannel?.readyState ?? null,
+      })
+      return
+    }
+
+    dataChannel.send(JSON.stringify(event))
+    this.debugLog('Sent realtime data channel event.', {
+      eventType,
+    })
+  }
+
+  private flushPendingRealtimeEvents() {
+    if (!this.pendingRealtimeEvents.length) {
+      return
+    }
+
+    const queued = [...this.pendingRealtimeEvents]
+    this.pendingRealtimeEvents = []
+    queued.forEach((event) => this.sendEvent(event))
+    this.debugLog('Flushed queued realtime data channel events.', {
+      count: queued.length,
     })
   }
 

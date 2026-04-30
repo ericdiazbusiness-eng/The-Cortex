@@ -1,0 +1,535 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "hermes-agent",
+  "elements": [
+    {
+      "type": "rectangle",
+      "id": "meta",
+      "x": 42,
+      "y": 56,
+      "width": 212,
+      "height": 90,
+      "strokeColor": "#67f4ff",
+      "backgroundColor": "#12283d",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "meta1",
+      "x": 84,
+      "y": 80,
+      "text": "Protected resource",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Protected resource",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "meta2",
+      "x": 76,
+      "y": 108,
+      "text": "mcp.higgsfield.ai metadata",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#9fd5e5",
+      "originalText": "mcp.higgsfield.ai metadata",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "meta3",
+      "x": 72,
+      "y": 128,
+      "text": "points Hermes-class clients",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#9fd5e5",
+      "originalText": "points Hermes-class clients",
+      "autoResize": true
+    },
+    {
+      "type": "rectangle",
+      "id": "device",
+      "x": 298,
+      "y": 56,
+      "width": 222,
+      "height": 110,
+      "strokeColor": "#dd6fff",
+      "backgroundColor": "#27173d",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "device1",
+      "x": 350,
+      "y": 80,
+      "text": "Device flow auth",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Device flow auth",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "device2",
+      "x": 318,
+      "y": 108,
+      "text": "POST /authorize \u2192 verification URI",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#f4b8ff",
+      "originalText": "POST /authorize \u2192 verification URI",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "device3",
+      "x": 330,
+      "y": 128,
+      "text": "poll /token until approval lands",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#f4b8ff",
+      "originalText": "poll /token until approval lands",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "device4",
+      "x": 318,
+      "y": 148,
+      "text": "fnf-device-auth.higgsfield.ai",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#f4b8ff",
+      "originalText": "fnf-device-auth.higgsfield.ai",
+      "autoResize": true
+    },
+    {
+      "type": "rectangle",
+      "id": "token",
+      "x": 570,
+      "y": 56,
+      "width": 210,
+      "height": 96,
+      "strokeColor": "#8bff8a",
+      "backgroundColor": "#182929",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "token1",
+      "x": 616,
+      "y": 82,
+      "text": "Token in Cortex",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Token in Cortex",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "token2",
+      "x": 632,
+      "y": 110,
+      "text": "persist bearer as",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#b4f7b3",
+      "originalText": "persist bearer as",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "token3",
+      "x": 610,
+      "y": 130,
+      "text": "HIGGSFIELD_MCP_TOKEN",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#b4f7b3",
+      "originalText": "HIGGSFIELD_MCP_TOKEN",
+      "autoResize": true
+    },
+    {
+      "type": "rectangle",
+      "id": "native",
+      "x": 798,
+      "y": 56,
+      "width": 142,
+      "height": 96,
+      "strokeColor": "#ffc86f",
+      "backgroundColor": "#372118",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "native1",
+      "x": 827,
+      "y": 84,
+      "text": "Native MCP",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Native MCP",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "native2",
+      "x": 819,
+      "y": 112,
+      "text": "HTTP + Bearer",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#ffd79e",
+      "originalText": "HTTP + Bearer",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "native3",
+      "x": 833,
+      "y": 132,
+      "text": "header auth",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#ffd79e",
+      "originalText": "header auth",
+      "autoResize": true
+    },
+    {
+      "type": "rectangle",
+      "id": "verify",
+      "x": 246,
+      "y": 224,
+      "width": 300,
+      "height": 104,
+      "strokeColor": "#67f4ff",
+      "backgroundColor": "#12283d",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "verify1",
+      "x": 320,
+      "y": 248,
+      "text": "Live tool verification",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Live tool verification",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "verify2",
+      "x": 274,
+      "y": 276,
+      "text": "balance / list_workspaces / models_explore",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#9fd5e5",
+      "originalText": "balance / list_workspaces / models_explore",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "verify3",
+      "x": 256,
+      "y": 296,
+      "text": "show_marketing_studio / show_generations / show_medias",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#9fd5e5",
+      "originalText": "show_marketing_studio / show_generations / show_medias",
+      "autoResize": true
+    },
+    {
+      "type": "rectangle",
+      "id": "runtime",
+      "x": 584,
+      "y": 224,
+      "width": 316,
+      "height": 116,
+      "strokeColor": "#ffc86f",
+      "backgroundColor": "#372118",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "runtime1",
+      "x": 656,
+      "y": 248,
+      "text": "Current runtime context",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Current runtime context",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "runtime2",
+      "x": 620,
+      "y": 276,
+      "text": "Account: zaidekthecreator@gmail.com",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#ffd79e",
+      "originalText": "Account: zaidekthecreator@gmail.com",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "runtime3",
+      "x": 614,
+      "y": 296,
+      "text": "Plan: free / Credits: 0 / Private workspace live",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#ffd79e",
+      "originalText": "Plan: free / Credits: 0 / Private workspace live",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "runtime4",
+      "x": 610,
+      "y": 316,
+      "text": "Browsing works; new paid generations are blocked",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#ffd79e",
+      "originalText": "Browsing works; new paid generations are blocked",
+      "autoResize": true
+    },
+    {
+      "type": "rectangle",
+      "id": "cleanup",
+      "x": 320,
+      "y": 392,
+      "width": 364,
+      "height": 102,
+      "strokeColor": "#dd6fff",
+      "backgroundColor": "#27173d",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "cleanup1",
+      "x": 446,
+      "y": 416,
+      "text": "Remaining cleanup",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Remaining cleanup",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "cleanup2",
+      "x": 358,
+      "y": 444,
+      "text": "Live MCP works, but the expected Cortex config/.env",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#f4b8ff",
+      "originalText": "Live MCP works, but the expected Cortex config/.env",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "cleanup3",
+      "x": 350,
+      "y": 464,
+      "text": "wiring was not obvious on disk and should be cleaned up.",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#f4b8ff",
+      "originalText": "wiring was not obvious on disk and should be cleaned up.",
+      "autoResize": true
+    },
+    {
+      "type": "arrow",
+      "id": "a1",
+      "x": 254,
+      "y": 100,
+      "width": 44,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "strokeColor": "#67f4ff",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "a2",
+      "x": 520,
+      "y": 100,
+      "width": 50,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          50,
+          0
+        ]
+      ],
+      "strokeColor": "#dd6fff",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "a3",
+      "x": 780,
+      "y": 100,
+      "width": 18,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          18,
+          0
+        ]
+      ],
+      "strokeColor": "#8bff8a",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "a4",
+      "x": 409,
+      "y": 166,
+      "width": 0,
+      "height": 58,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          58
+        ]
+      ],
+      "strokeColor": "#67f4ff",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "a5",
+      "x": 546,
+      "y": 276,
+      "width": 38,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          38,
+          0
+        ]
+      ],
+      "strokeColor": "#67f4ff",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "a6",
+      "x": 742,
+      "y": 340,
+      "width": -240,
+      "height": 52,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -240,
+          0
+        ],
+        [
+          -240,
+          52
+        ]
+      ],
+      "strokeColor": "#ffc86f",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "endArrowhead": "arrow"
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#070d1a"
+  },
+  "files": {}
+}

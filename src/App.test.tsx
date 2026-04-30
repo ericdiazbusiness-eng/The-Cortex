@@ -49,6 +49,15 @@ const createApiStub = (
   return {
   getWorkspaceSnapshot: vi.fn().mockImplementation(getWorkspaceSnapshot),
   getDashboardSnapshot: vi.fn().mockImplementation(async () => clone(snapshot)),
+  getDatabaseStatus: vi.fn().mockResolvedValue({
+    configured: false,
+    connected: false,
+    source: 'browser_fallback',
+    checkedAt: new Date().toISOString(),
+    error: null,
+    workspaces: [],
+    tables: [],
+  }),
   listAgents: vi.fn().mockImplementation(async () => clone(snapshot.agentLanes)),
   listMemories: vi.fn().mockImplementation(async () => clone(snapshot.vaultEntries)),
   listWorkflows: vi.fn().mockImplementation(async () => clone(snapshot.workflows)),
@@ -184,6 +193,27 @@ const createApiStub = (
     ranAt: new Date().toISOString(),
     durationMs: 80,
   }),
+  prepareVoiceAction: vi.fn().mockImplementation(async (payload) => ({
+    actionId: 'voice-action-1',
+    action: payload.action,
+    workspace: payload.workspace,
+    parameters: payload.parameters,
+    reason: payload.reason ?? null,
+    requiresConfirmation: true,
+    expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    summary: `${payload.action} prepared.`,
+  })),
+  confirmVoiceAction: vi.fn().mockResolvedValue({
+    actionId: 'voice-action-1',
+    action: 'refresh_workspace',
+    workspace: 'cortex',
+    ok: true,
+    confirmed: true,
+    canceled: false,
+    result: null,
+    error: null,
+    auditedAt: new Date().toISOString(),
+  }),
   createRealtimeCall: vi.fn().mockRejectedValue(new Error('unused in tests')),
   transcribeAudio: vi.fn().mockResolvedValue(''),
   createRealtimeTranscriptionToken: vi.fn().mockResolvedValue({
@@ -226,7 +256,7 @@ describe('The Cortex app', () => {
     window.location.hash = '#/'
   })
 
-  it('renders the overview with mission metrics, gateway status, and the 9-item dock', async () => {
+  it('renders the overview with live usage indicators, gateway status, and the 9-item dock', async () => {
     render(<App />)
 
     expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
@@ -260,34 +290,65 @@ describe('The Cortex app', () => {
     render(<App />)
 
     expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
-    expect(screen.queryByText('Mission Load')).not.toBeInTheDocument()
+    expect(screen.queryByText('ElevenLabs')).not.toBeInTheDocument()
 
-    await user.hover(screen.getByRole('button', { name: /mission load/i }))
+    await user.hover(screen.getByRole('button', { name: /elevenlabs/i }))
 
-    expect(screen.getByText('Mission Load')).toBeInTheDocument()
-    expect(screen.getByText(/active of/i)).toBeInTheDocument()
+    expect(screen.getByText('ElevenLabs')).toBeInTheDocument()
+    expect(screen.getByText(/characters remaining/i)).toBeInTheDocument()
   })
 
-  it('gates ZiB details behind an explicit selection', async () => {
+  it('renders the ZiB role selection surface and opens role workspace lanes', async () => {
     const user = userEvent.setup()
     render(<App />)
 
     expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()
 
     await user.click(screen.getByRole('link', { name: 'Xylos' }))
-    expect(await screen.findByText('Xylos Index')).toBeInTheDocument()
-    expect(screen.getByText('Select a Xylos')).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Command' })).toBeInTheDocument()
-    expect(screen.getByText('Xylos Workspace Locked')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Choose a ZiB' })).toBeInTheDocument()
+    expect(screen.getByText('Select a ZiB and Scavenjer-operation role to enter the workspace.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Command/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('Your Active ZiB')).toBeInTheDocument()
+    expect(screen.getByText('Command Workspace')).toBeInTheDocument()
     expect(screen.queryByText('Scavenjer GM Workspace')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Scavenjer GM/i }))
-    expect(await screen.findByText('Scavenjer GM Workspace')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Field/i }))
+    expect(await screen.findByText('Field Workspace')).toBeInTheDocument()
+    expect(screen.getByText('DropOps')).toBeInTheDocument()
     expect(screen.getAllByText('Missions').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Outputs').length).toBeGreaterThan(0)
 
     await user.click(screen.getByRole('link', { name: 'Knowledge' }))
     expect(await screen.findByText('Scavenjer Source Truth')).toBeInTheDocument()
+  })
+
+  it('renders the business knowledge route with the shared workspace layout', async () => {
+    window.location.hash = '#/business/knowledge'
+    window.cortexApi = createApiStub()
+    render(<App />)
+
+    expect(await screen.findByText('Business Source Truth')).toBeInTheDocument()
+    expect(screen.getByText('Focused Relationship')).toBeInTheDocument()
+    expect(screen.getByText('Operating References')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'ZiBz' })).toBeInTheDocument()
+    expect(screen.queryByText('Scavenjer Source Truth')).not.toBeInTheDocument()
+  })
+
+  it('renders the business ZiBz route through the shared role selection surface', async () => {
+    const user = userEvent.setup()
+    window.location.hash = '#/business/zibz'
+    window.cortexApi = createApiStub()
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Choose a ZiB' })).toBeInTheDocument()
+    expect(screen.getByText('Select a ZiB and business-operation role to enter the workspace.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Command/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('Command Workspace')).toBeInTheDocument()
+    expect(screen.queryByText('Xylos Index')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Systems/i }))
+    expect(await screen.findByText('Systems Workspace')).toBeInTheDocument()
+    expect(screen.getByText('Finance Admin')).toBeInTheDocument()
   })
 
   it('renders a selection-first workflows view and validates required fields before save', async () => {
@@ -320,6 +381,48 @@ describe('The Cortex app', () => {
 
     await user.click(screen.getByRole('button', { name: 'Create Workflow' }))
     expect(await screen.findByText('Diagram source is required for a new workflow.')).toBeInTheDocument()
+  })
+
+  it('surfaces the restaurant food edits workflow with the five-shot variation details', async () => {
+    const user = userEvent.setup()
+    window.location.hash = '#/cortex/workflows'
+    window.cortexApi = createApiStub()
+    render(<App />)
+
+    expect(await screen.findByRole('button', { name: 'Restaurant Food Edit Variations' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Restaurant Food Edit Variations' }))
+
+    expect(
+      await screen.findByText(/five approved restaurant product-shot variations/i),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/food edits google drive folder/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/generated edits subfolder/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/daily 9pm cron/i)).toBeInTheDocument()
+    expect(screen.getByText(/hero-overhead-daylight/i)).toBeInTheDocument()
+    expect(screen.getByText(/three-quarter-cinematic/i)).toBeInTheDocument()
+    expect(screen.getByText(/close-detail-appetite/i)).toBeInTheDocument()
+    expect(screen.getByText(/tableside-context-wide/i)).toBeInTheDocument()
+    expect(screen.getByText(/low-angle-editorial/i)).toBeInTheDocument()
+  })
+
+  it('surfaces the Higgsfield MCP workflow with auth, verification, and runtime status context', async () => {
+    const user = userEvent.setup()
+    window.location.hash = '#/cortex/workflows'
+    window.cortexApi = createApiStub()
+    render(<App />)
+
+    expect(await screen.findByRole('button', { name: 'Higgsfield MCP Device-Auth Setup' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Higgsfield MCP Device-Auth Setup' }))
+
+    expect(await screen.findByText(/device-flow auth/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/fnf-device-auth\.higgsfield\.ai/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/HIGGSFIELD_MCP_TOKEN/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/zaidekthecreator@gmail\.com/i)).toBeInTheDocument()
+    expect(screen.getByText(/free plan with 0 credits/i)).toBeInTheDocument()
+    expect(screen.getByText(/browsing and management actions work while fresh paid generations remain blocked/i)).toBeInTheDocument()
+    expect(screen.getByText(/expected Cortex config\/.env entries were not obvious on disk/i)).toBeInTheDocument()
   })
 
   it('persists the business mode toggle', async () => {

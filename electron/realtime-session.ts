@@ -91,14 +91,19 @@ export const buildRealtimeSessionConfig = (
   const sessionConfig = {
     type: 'realtime',
     model: safeTrim(
-      payload.textModel ?? getEnvValue('OPENAI_REALTIME_MODEL', DEFAULT_REALTIME_MODEL),
+      payload.realtimeModel ?? getEnvValue('OPENAI_REALTIME_MODEL', DEFAULT_REALTIME_MODEL),
     ),
     instructions: payload.instructions,
     tool_choice: 'auto',
     tools: payload.tools,
-    output_modalities: ['audio'],
+    output_modalities: payload.silentOutput ? ['text'] : ['audio'],
     audio: {
       input: {
+        transcription: payload.transcriptionModel
+          ? {
+              model: safeTrim(payload.transcriptionModel),
+            }
+          : undefined,
         turn_detection: {
           type: 'semantic_vad',
           create_response: true,
@@ -132,7 +137,7 @@ export const createRealtimeCallAnswer = async (
   logRealtimeDebug('log', 'Creating realtime call answer.', {
     mode: payload.mode,
     runtime: payload.runtime,
-    model: payload.textModel ?? DEFAULT_REALTIME_MODEL,
+    model: payload.realtimeModel ?? DEFAULT_REALTIME_MODEL,
     offerLength: offerSdp.length,
   })
 

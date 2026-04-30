@@ -24,7 +24,8 @@ const TEST_REQUEST: CortexRealtimeSessionRequest = {
   instructions: 'Use tools first.',
   tools: [],
   mode: 'premium_voice',
-  runtime: 'experimental_realtime_webrtc',
+  runtime: 'gpt_realtime_webrtc',
+  realtimeModel: 'gpt-realtime-1.5',
   textModel: 'gpt-4.1',
   transcriptionProvider: 'openai',
   speechProvider: 'openai',
@@ -64,7 +65,7 @@ describe('realtime-session helpers', () => {
 
     expect(session).toMatchObject({
       type: 'realtime',
-      model: 'gpt-4.1',
+      model: 'gpt-realtime-1.5',
       instructions: 'Use tools first.',
       tool_choice: 'auto',
       output_modalities: ['audio'],
@@ -110,7 +111,7 @@ describe('realtime-session helpers', () => {
     const formData = request?.body as FormData
     expect(formData.get('sdp')).toBe('offer-sdp')
     expect(String(formData.get('session'))).toContain('"type":"realtime"')
-    expect(String(formData.get('session'))).toContain('"model":"gpt-4.1"')
+    expect(String(formData.get('session'))).toContain('"model":"gpt-realtime-1.5"')
   })
 
   it('rejects session creation when OPENAI_API_KEY is missing', async () => {
@@ -198,7 +199,7 @@ describe('realtime-session helpers', () => {
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining('[RT][main] Creating realtime call answer.'),
       expect.objectContaining({
-        runtime: 'experimental_realtime_webrtc',
+        runtime: 'gpt_realtime_webrtc',
         mode: 'premium_voice',
       }),
     )

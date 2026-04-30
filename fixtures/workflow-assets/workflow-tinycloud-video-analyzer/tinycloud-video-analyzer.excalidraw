@@ -1,0 +1,389 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "hermes-agent",
+  "elements": [
+    {
+      "type": "rectangle",
+      "id": "video",
+      "x": 54,
+      "y": 60,
+      "width": 180,
+      "height": 88,
+      "strokeColor": "#67f4ff",
+      "backgroundColor": "#12283d",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "video-t1",
+      "x": 92,
+      "y": 84,
+      "text": "Video input",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Video input",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "video-t2",
+      "x": 82,
+      "y": 112,
+      "text": "file, URL, or collection target",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#9fd5e5",
+      "originalText": "file, URL, or collection target",
+      "autoResize": true
+    },
+    {
+      "type": "rectangle",
+      "id": "tinycloud",
+      "x": 284,
+      "y": 60,
+      "width": 214,
+      "height": 88,
+      "strokeColor": "#dd6fff",
+      "backgroundColor": "#27173d",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "tinycloud-t1",
+      "x": 326,
+      "y": 84,
+      "text": "Tinycloud CLI",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Tinycloud CLI",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "tinycloud-t2",
+      "x": 302,
+      "y": 112,
+      "text": "interactive, prompt, JSON, session",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#f4b8ff",
+      "originalText": "interactive, prompt, JSON, session",
+      "autoResize": true
+    },
+    {
+      "type": "rectangle",
+      "id": "cloudglue",
+      "x": 546,
+      "y": 60,
+      "width": 228,
+      "height": 100,
+      "strokeColor": "#8bff8a",
+      "backgroundColor": "#182929",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "cloudglue-t1",
+      "x": 590,
+      "y": 82,
+      "text": "Cloudglue analysis",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Cloudglue analysis",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "cloudglue-t2",
+      "x": 572,
+      "y": 110,
+      "text": "video understanding + orchestration",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#b4f7b3",
+      "originalText": "video understanding + orchestration",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "cloudglue-t3",
+      "x": 598,
+      "y": 132,
+      "text": "requires valid API key",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#b4f7b3",
+      "originalText": "requires valid API key",
+      "autoResize": true
+    },
+    {
+      "type": "rectangle",
+      "id": "outputs",
+      "x": 284,
+      "y": 224,
+      "width": 232,
+      "height": 100,
+      "strokeColor": "#ffc86f",
+      "backgroundColor": "#372118",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "outputs-t1",
+      "x": 338,
+      "y": 246,
+      "text": "Video outputs",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Video outputs",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "outputs-t2",
+      "x": 308,
+      "y": 274,
+      "text": "analysis, captions, search, dashboards",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#ffd79e",
+      "originalText": "analysis, captions, search, dashboards",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "outputs-t3",
+      "x": 318,
+      "y": 296,
+      "text": "repurposed content and exports",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#ffd79e",
+      "originalText": "repurposed content and exports",
+      "autoResize": true
+    },
+    {
+      "type": "rectangle",
+      "id": "review",
+      "x": 570,
+      "y": 224,
+      "width": 204,
+      "height": 88,
+      "strokeColor": "#67f4ff",
+      "backgroundColor": "#12283d",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "review-t1",
+      "x": 612,
+      "y": 248,
+      "text": "Review + route",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Review + route",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "review-t2",
+      "x": 586,
+      "y": 276,
+      "text": "approve, publish, or automate next",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#9fd5e5",
+      "originalText": "approve, publish, or automate next",
+      "autoResize": true
+    },
+    {
+      "type": "rectangle",
+      "id": "status",
+      "x": 404,
+      "y": 378,
+      "width": 254,
+      "height": 88,
+      "strokeColor": "#ffc86f",
+      "backgroundColor": "#372118",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "status-t1",
+      "x": 432,
+      "y": 402,
+      "text": "Current live status",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "strokeColor": "#edf8ff",
+      "originalText": "Current live status",
+      "autoResize": true
+    },
+    {
+      "type": "text",
+      "id": "status-t2",
+      "x": 430,
+      "y": 430,
+      "text": "workflow documented, auth still blocked",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "strokeColor": "#ffd79e",
+      "originalText": "workflow documented, auth still blocked",
+      "autoResize": true
+    },
+    {
+      "type": "arrow",
+      "id": "a1",
+      "x": 234,
+      "y": 104,
+      "width": 50,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          50,
+          0
+        ]
+      ],
+      "strokeColor": "#67f4ff",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "a2",
+      "x": 498,
+      "y": 104,
+      "width": 48,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          48,
+          0
+        ]
+      ],
+      "strokeColor": "#dd6fff",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "a3",
+      "x": 398,
+      "y": 148,
+      "width": 0,
+      "height": 76,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          76
+        ]
+      ],
+      "strokeColor": "#ffc86f",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "a4",
+      "x": 516,
+      "y": 274,
+      "width": 54,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          54,
+          0
+        ]
+      ],
+      "strokeColor": "#ffc86f",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "a5",
+      "x": 672,
+      "y": 312,
+      "width": -140,
+      "height": 66,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -140,
+          0
+        ],
+        [
+          -140,
+          66
+        ]
+      ],
+      "strokeColor": "#67f4ff",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "endArrowhead": "arrow"
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#070d1a"
+  },
+  "files": {}
+}

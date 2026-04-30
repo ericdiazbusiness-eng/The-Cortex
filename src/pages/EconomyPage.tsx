@@ -1,33 +1,36 @@
 import { useEffect } from 'react'
 import { Panel } from '@/components/Panel'
 import { useCortex } from '@/hooks/useCortex'
+import { buildEconomyModel } from './workspace-page-models'
 
 export const EconomyPage = () => {
-  const { snapshot, setViewContext } = useCortex()
+  const { businessSnapshot, snapshot, setViewContext, uiMode } = useCortex()
+  const model = buildEconomyModel(uiMode, snapshot, businessSnapshot)
 
   useEffect(() => {
-    if (!snapshot) {
+    const nextModel = buildEconomyModel(uiMode, snapshot, businessSnapshot)
+    if (!nextModel) {
       return
     }
 
     setViewContext({
       details: {
-        economyMetrics: snapshot.economyMetrics.length,
-        staleMissions: snapshot.missions.filter((mission) => mission.status === 'stale').length,
-        warningIntegrations: snapshot.integrationMonitors.filter((monitor) => monitor.status !== 'healthy').length,
+        economyMetrics: nextModel.metrics.length,
+        staleMissions: nextModel.risks.filter((risk) => risk.meta === 'stale').length,
+        warningIntegrations: nextModel.risks.filter((risk) => risk.meta !== 'healthy').length,
       },
     })
-  }, [setViewContext, snapshot])
+  }, [businessSnapshot, setViewContext, snapshot, uiMode])
 
-  if (!snapshot) {
+  if (!model) {
     return null
   }
 
   return (
-    <div className="mission-os-grid">
-      <Panel title="Scavenjer Economy" eyebrow="Rewards, minting, partner proof" className="minimal-panel">
+    <div className="mission-os-grid page-motif-economy">
+      <Panel title={model.title} eyebrow={model.eyebrow} className="minimal-panel">
         <div className="metric-grid">
-          {snapshot.economyMetrics.map((metric) => (
+          {model.metrics.map((metric) => (
             <article key={metric.id} className={`metric-card accent-${metric.accent}`}>
               <span>{metric.label}</span>
               <strong>{metric.value}</strong>
@@ -37,22 +40,20 @@ export const EconomyPage = () => {
         </div>
       </Panel>
 
-      <Panel title="Risk Watch" eyebrow="Blocked, stale, or revenue-leaking work" className="minimal-panel">
+      <Panel title={model.riskTitle} eyebrow={model.riskEyebrow} className="minimal-panel">
         <div className="stack-list">
-          {snapshot.missions
-            .filter((mission) => mission.status === 'stale' || mission.status === 'blocked')
-            .map((mission) => (
-              <article key={mission.id} className={`list-row accent-${mission.accent}`}>
-                <div>
-                  <strong>{mission.title}</strong>
-                  <span>{mission.status}</span>
-                </div>
-                <div>
-                  <strong>{mission.priority}</strong>
-                  <span>{mission.nextAction}</span>
-                </div>
-              </article>
-            ))}
+          {model.risks.map((item) => (
+            <article key={item.id} className={`list-row accent-${item.accent}`}>
+              <div>
+                <strong>{item.title}</strong>
+                <span>{item.meta}</span>
+              </div>
+              <div>
+                <strong>{item.status}</strong>
+                <span>{item.subtitle}</span>
+              </div>
+            </article>
+          ))}
         </div>
       </Panel>
     </div>

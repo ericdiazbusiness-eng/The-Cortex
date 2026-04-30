@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 470">
+  <rect width="860" height="470" rx="30" fill="#070d1a" />
+  <rect x="40" y="54" width="170" height="76" rx="18" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+  <rect x="262" y="54" width="186" height="76" rx="18" fill="#27173d" stroke="#dd6fff" stroke-width="3" />
+  <rect x="502" y="54" width="186" height="76" rx="18" fill="#182929" stroke="#8bff8a" stroke-width="3" />
+  <rect x="262" y="176" width="186" height="76" rx="18" fill="#372118" stroke="#ffc86f" stroke-width="3" />
+  <rect x="502" y="176" width="186" height="76" rx="18" fill="#182929" stroke="#8bff8a" stroke-width="3" />
+  <rect x="324" y="322" width="220" height="76" rx="18" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+
+  <text x="125" y="92" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Brief + Script</text>
+  <text x="125" y="112" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">concept / scenes / refs</text>
+
+  <text x="355" y="92" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">HTML Composition</text>
+  <text x="355" y="112" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">layout / scenes / style</text>
+
+  <text x="595" y="92" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">GSAP Motion</text>
+  <text x="595" y="112" fill="#b4f7b3" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">timelines / transitions / pacing</text>
+
+  <text x="355" y="214" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Lint + Preview</text>
+  <text x="355" y="234" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">catch structure + motion issues</text>
+
+  <text x="595" y="214" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Render MP4</text>
+  <text x="595" y="234" fill="#b4f7b3" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">browser capture + FFmpeg</text>
+
+  <text x="434" y="360" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Review + Iterate</text>
+  <text x="434" y="380" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">frames / pacing / polish / next pass</text>
+
+  <path d="M210 92h52" stroke="#67f4ff" stroke-width="4" stroke-linecap="round" />
+  <path d="M448 92h54" stroke="#dd6fff" stroke-width="4" stroke-linecap="round" />
+  <path d="M355 130v46" stroke="#ffc86f" stroke-width="4" stroke-linecap="round" />
+  <path d="M448 214h54" stroke="#ffc86f" stroke-width="4" stroke-linecap="round" />
+  <path d="M595 252v26h-161v44" stroke="#67f4ff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="262" cy="92" r="6" fill="#67f4ff" />
+  <circle cx="502" cy="92" r="6" fill="#dd6fff" />
+  <circle cx="355" cy="176" r="6" fill="#ffc86f" />
+  <circle cx="502" cy="214" r="6" fill="#ffc86f" />
+</svg>

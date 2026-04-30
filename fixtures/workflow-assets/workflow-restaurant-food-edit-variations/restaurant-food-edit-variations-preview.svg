@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420">
+  <rect width="760" height="420" rx="30" fill="#070d1a" />
+  <rect x="44" y="58" width="150" height="74" rx="18" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+  <rect x="236" y="58" width="150" height="74" rx="18" fill="#182929" stroke="#8bff8a" stroke-width="3" />
+  <rect x="428" y="58" width="150" height="74" rx="18" fill="#27173d" stroke="#dd6fff" stroke-width="3" />
+  <rect x="236" y="176" width="150" height="74" rx="18" fill="#372118" stroke="#ffc86f" stroke-width="3" />
+  <rect x="428" y="176" width="150" height="74" rx="18" fill="#182929" stroke="#8bff8a" stroke-width="3" />
+  <rect x="620" y="176" width="96" height="74" rx="18" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+  <rect x="332" y="302" width="150" height="74" rx="18" fill="#27173d" stroke="#dd6fff" stroke-width="3" />
+
+  <text x="119" y="103" fill="#edf8ff" font-family="Arial, sans-serif" font-size="17" text-anchor="middle">Food Edits</text>
+  <text x="119" y="123" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Drive Source</text>
+
+  <text x="311" y="103" fill="#edf8ff" font-family="Arial, sans-serif" font-size="17" text-anchor="middle">Codex Edit</text>
+  <text x="311" y="123" fill="#b4f7b3" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Preserve Plate</text>
+
+  <text x="503" y="95" fill="#edf8ff" font-family="Arial, sans-serif" font-size="15" text-anchor="middle">Five Shot Profiles</text>
+  <text x="503" y="114" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="11" text-anchor="middle">hero / 3-quarter / close</text>
+  <text x="503" y="129" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="11" text-anchor="middle">wide / low-angle</text>
+
+  <text x="311" y="214" fill="#edf8ff" font-family="Arial, sans-serif" font-size="16" text-anchor="middle">Vision Review</text>
+  <text x="311" y="234" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">score ≥ 85</text>
+
+  <text x="503" y="214" fill="#edf8ff" font-family="Arial, sans-serif" font-size="16" text-anchor="middle">Generated Edits</text>
+  <text x="503" y="234" fill="#b4f7b3" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">subfolder upload</text>
+
+  <text x="668" y="214" fill="#edf8ff" font-family="Arial, sans-serif" font-size="14" text-anchor="middle">9 PM</text>
+  <text x="668" y="232" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="11" text-anchor="middle">daily cron</text>
+
+  <text x="407" y="346" fill="#edf8ff" font-family="Arial, sans-serif" font-size="17" text-anchor="middle">Cortex Thread</text>
+  <text x="407" y="366" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">status + links</text>
+
+  <path d="M194 95h42" stroke="#67f4ff" stroke-width="4" stroke-linecap="round" />
+  <path d="M386 95h42" stroke="#8bff8a" stroke-width="4" stroke-linecap="round" />
+  <path d="M311 132v44" stroke="#ffc86f" stroke-width="4" stroke-linecap="round" />
+  <path d="M386 214h42" stroke="#ffc86f" stroke-width="4" stroke-linecap="round" />
+  <path d="M578 214h42" stroke="#8bff8a" stroke-width="4" stroke-linecap="round" />
+  <path d="M503 250v52h-96" stroke="#dd6fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="236" cy="95" r="6" fill="#67f4ff" />
+  <circle cx="428" cy="95" r="6" fill="#8bff8a" />
+  <circle cx="311" cy="176" r="6" fill="#ffc86f" />
+  <circle cx="428" cy="214" r="6" fill="#ffc86f" />
+  <circle cx="620" cy="214" r="6" fill="#8bff8a" />
+</svg>

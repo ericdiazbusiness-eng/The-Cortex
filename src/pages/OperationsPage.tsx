@@ -2,86 +2,79 @@ import { useEffect } from 'react'
 import { Panel } from '@/components/Panel'
 import { useCortex } from '@/hooks/useCortex'
 import { formatDateTime } from './mission-os-utils'
+import { buildOperationsModel } from './workspace-page-models'
 
 export const OperationsPage = () => {
-  const { snapshot, setViewContext, runCommand, uiFocus } = useCortex()
+  const { businessSnapshot, snapshot, setViewContext, runCommand, uiFocus, uiMode } = useCortex()
+  const model = buildOperationsModel(uiMode, snapshot, businessSnapshot, uiFocus.dropId)
 
   useEffect(() => {
-    if (!snapshot) {
+    const nextModel = buildOperationsModel(uiMode, snapshot, businessSnapshot, uiFocus.dropId)
+    if (!nextModel) {
       return
     }
 
     setViewContext({
       details: {
-        activeDrops: snapshot.drops.filter((drop) => drop.status === 'live').length,
-        pendingDrops: snapshot.drops.filter((drop) => drop.status === 'pending').length,
+        activeDrops: nextModel.cards.filter((card) => card.status === 'live' || card.status === 'active').length,
+        pendingDrops: nextModel.cards.filter((card) => card.status === 'pending' || card.status === 'queued').length,
         focusedDropId: uiFocus.dropId,
       },
     })
-  }, [setViewContext, snapshot, uiFocus.dropId])
+  }, [businessSnapshot, setViewContext, snapshot, uiFocus.dropId, uiMode])
 
-  if (!snapshot) {
+  if (!model) {
     return null
   }
 
   return (
-    <div className="mission-os-grid">
-      <Panel title="Scavenjer Operations Board" eyebrow="Drops, hosts, rewards, scheduling" className="minimal-panel">
+    <div className="mission-os-grid page-motif-operations">
+      <Panel title={model.title} eyebrow={model.eyebrow} className="minimal-panel">
         <div className="record-grid">
-          {snapshot.drops.map((drop) => (
+          {model.cards.map((drop) => (
             <article
               key={drop.id}
               className={`record-card accent-${drop.accent}${uiFocus.dropId === drop.id ? ' is-focused' : ''}`}
             >
               <div className="record-card-head">
                 <span className="status-badge status-active">{drop.status}</span>
-                <span className="record-card-meta">{drop.city}</span>
+                <span className="record-card-meta">{drop.meta}</span>
               </div>
-              <h3>{drop.name}</h3>
-              <p>{drop.location}</p>
+              <h3>{drop.title}</h3>
+              <p>{drop.body}</p>
               <dl className="record-meta-grid">
-                <div>
-                  <dt>Host</dt>
-                  <dd>{drop.host}</dd>
-                </div>
-                <div>
-                  <dt>Reward</dt>
-                  <dd>{drop.reward}</dd>
-                </div>
-                <div>
-                  <dt>Countdown</dt>
-                  <dd>{drop.countdown}</dd>
-                </div>
-                <div>
-                  <dt>Scheduled</dt>
-                  <dd>{formatDateTime(drop.scheduledFor)}</dd>
-                </div>
+                {(drop.columns ?? []).map((column) => (
+                  <div key={column.label}>
+                    <dt>{column.label}</dt>
+                    <dd>{column.label === 'Scheduled' || column.label === 'Due' ? formatDateTime(column.value) : column.value}</dd>
+                  </div>
+                ))}
               </dl>
-              <div className="record-footnote">
-                <strong>Completion</strong>
-                <span>{drop.completionState}</span>
-              </div>
+              {(drop.footnotes ?? []).map((footnote) => (
+                <div key={footnote.label} className="record-footnote">
+                  <strong>{footnote.label}</strong>
+                  <span>{footnote.value}</span>
+                </div>
+              ))}
             </article>
           ))}
         </div>
       </Panel>
 
-      <Panel title="Operations Controls" eyebrow="Drop and field actions" className="minimal-panel">
+      <Panel title={model.controlsTitle} eyebrow={model.controlsEyebrow} className="minimal-panel">
         <div className="command-row compact">
-          {snapshot.commands
-            .filter((command) => command.scope === 'operations')
-            .map((command) => (
-              <button
-                key={command.id}
-                className={`command-button ${command.tone}`}
-                type="button"
-                onClick={() => {
-                  void runCommand(command.id, uiFocus.dropId ?? 'operations')
-                }}
-              >
-                {command.label}
-              </button>
-            ))}
+          {model.commands.map((command) => (
+            <button
+              key={command.id}
+              className={`command-button ${command.tone}`}
+              type="button"
+              onClick={() => {
+                void runCommand(command.id, model.commandContext)
+              }}
+            >
+              {command.label}
+            </button>
+          ))}
         </div>
       </Panel>
     </div>

@@ -3,7 +3,11 @@
     "id": "workflow-notion-sync",
     "title": "Notion Vault Sync",
     "description": "Refreshes doctrine pages, pulls decision updates, and republishes approved source-of-truth entries into the Cortex knowledge surface.",
-    "toolsUsed": ["Notion API", "Node runtime", "Cortex sync command"],
+    "toolsUsed": [
+      "Notion API",
+      "Node runtime",
+      "Cortex sync command"
+    ],
     "architecture": "A scheduled trigger starts the sync runner, pulls the latest Notion documents, normalizes the payload, then updates the local workflow registry and the knowledge snapshot.",
     "diagramSource": {
       "path": "fixtures/workflow-assets/workflow-notion-sync/notion-vault-sync.excalidraw",
@@ -27,7 +31,11 @@
     "id": "workflow-reward-audit",
     "title": "Reward Budget Audit",
     "description": "Checks recurring automation spend, flags retry storms, and publishes a concise approval packet for blocked operations.",
-    "toolsUsed": ["Audit agent", "Economy command", "Spreadsheet export"],
+    "toolsUsed": [
+      "Audit agent",
+      "Economy command",
+      "Spreadsheet export"
+    ],
     "architecture": "The scheduler launches the audit command, compares current spend against the baseline, writes evidence to the audit stream, and exposes an approval-ready summary for operations.",
     "diagramSource": {
       "path": "fixtures/workflow-assets/workflow-reward-audit/reward-budget-audit.excalidraw",
@@ -46,5 +54,155 @@
     "zipAsset": null,
     "updatedAt": "2026-04-19T08:42:00.000Z",
     "accent": "amber"
+  },
+  {
+    "id": "workflow-restaurant-food-edit-variations",
+    "title": "Restaurant Food Edit Variations",
+    "description": "Generates five approved restaurant product-shot variations from the Food Edits Google Drive folder while preserving the original plated dish, then uploads accepted results into the Generated Edits subfolder for review.",
+    "toolsUsed": [
+      "Google Drive",
+      "Google Workspace OAuth",
+      "Codex gpt-image-2 edit mode",
+      "Vision verification",
+      "Cron automation"
+    ],
+    "architecture": "A daily 9PM cron run selects the next source image from the Food Edits Google Drive folder, downloads it locally, creates a preservation-first hero-overhead-daylight baseline plus four additional shot profiles (three-quarter-cinematic, close-detail-appetite, tableside-context-wide, and low-angle-editorial), verifies each candidate against the original plate and plating layout with a score threshold of 85, and uploads only approved variants into the Generated Edits subfolder while posting status back to the Cortex thread.",
+    "diagramSource": {
+      "path": "fixtures/workflow-assets/workflow-restaurant-food-edit-variations/restaurant-food-edit-variations.excalidraw",
+      "fileName": "restaurant-food-edit-variations.excalidraw",
+      "mimeType": "application/vnd.excalidraw+json",
+      "sizeBytes": 8153,
+      "uploadedAt": "2026-04-28T01:35:09.000Z"
+    },
+    "diagramPreview": {
+      "path": "fixtures/workflow-assets/workflow-restaurant-food-edit-variations/restaurant-food-edit-variations-preview.svg",
+      "fileName": "restaurant-food-edit-variations-preview.svg",
+      "mimeType": "image/svg+xml",
+      "sizeBytes": 3613,
+      "uploadedAt": "2026-04-27T23:20:00.000Z"
+    },
+    "zipAsset": null,
+    "updatedAt": "2026-04-28T01:35:09.000Z",
+    "accent": "green"
+  },
+  {
+    "id": "workflow-hyperframes-motion-pipeline",
+    "title": "Hyperframes Motion Video Pipeline",
+    "description": "Turns a creative brief, script, and visual references into a motion-first Hyperframes video workflow that can be previewed, rendered, reviewed, and iterated into polished Scavenjer or operator-facing video assets.",
+    "toolsUsed": [
+      "Creative brief",
+      "HTML compositions",
+      "GSAP timelines",
+      "Hyperframes CLI",
+      "FFmpeg renderer"
+    ],
+    "architecture": "The current workflow starts with an operator or agent assembling a brief, script, and visual references, then building a structured Hyperframes HTML composition with GSAP-driven motion. The composition is linted and previewed to catch structure, pacing, and scene issues before rendering an MP4 through browser capture and FFmpeg. The output is then reviewed for frame quality, motion energy, and narrative clarity so the next pass can tighten scenes, timing, and polish. This is the base workflow now; later it can expand into reusable templates, batch inputs, and deeper automation.",
+    "diagramSource": {
+      "path": "fixtures/workflow-assets/workflow-hyperframes-motion-pipeline/hyperframes-motion-pipeline.excalidraw",
+      "fileName": "hyperframes-motion-pipeline.excalidraw",
+      "mimeType": "application/vnd.excalidraw+json",
+      "sizeBytes": 7287,
+      "uploadedAt": "2026-04-28T04:37:02.000Z"
+    },
+    "diagramPreview": {
+      "path": "fixtures/workflow-assets/workflow-hyperframes-motion-pipeline/hyperframes-motion-pipeline-preview.svg",
+      "fileName": "hyperframes-motion-pipeline-preview.svg",
+      "mimeType": "image/svg+xml",
+      "sizeBytes": 3075,
+      "uploadedAt": "2026-04-28T04:37:02.000Z"
+    },
+    "zipAsset": null,
+    "updatedAt": "2026-04-28T04:37:02.000Z",
+    "accent": "magenta"
+  },
+  {
+    "id": "workflow-tinycloud-video-analyzer",
+    "title": "Tinycloud Video Analyzer",
+    "description": "Documents the Tinycloud workflow for deep video analysis: an operator or agent points Tinycloud at a video and prompt, Tinycloud orchestrates Cloudglue-backed analysis, and the workflow can return summaries, captions, search results, dashboards, repurposed content, and other reviewable outputs.",
+    "toolsUsed": [
+      "Tinycloud CLI",
+      "Cloudglue orchestration",
+      "Prompt-driven analysis",
+      "Session persistence",
+      "JSON output"
+    ],
+    "architecture": "Tinycloud is installed locally as an agent CLI for deep video work. The base workflow starts with a video file, URL, or collection target plus a prompt describing what is needed. Tinycloud can run interactively, in one-shot prompt mode, with JSON output, or with resumable sessions, then hands the work to Cloudglue for the actual video analysis and orchestration layer. From there the workflow can produce summaries, subtitles, search-oriented outputs, dashboards, repurposed content, and other structured deliverables that an operator can review and route into downstream automations. Important current context: the live Cloudglue connection is not yet usable in this environment because the API key is invalid, so the workflow is fully documented in Cortex now but still needs auth repair before real execution and iteration can happen.",
+    "diagramSource": {
+      "path": "fixtures/workflow-assets/workflow-tinycloud-video-analyzer/tinycloud-video-analyzer.excalidraw",
+      "fileName": "tinycloud-video-analyzer.excalidraw",
+      "mimeType": "application/vnd.excalidraw+json",
+      "sizeBytes": 7961,
+      "uploadedAt": "2026-04-28T06:53:09.000Z"
+    },
+    "diagramPreview": {
+      "path": "fixtures/workflow-assets/workflow-tinycloud-video-analyzer/tinycloud-video-analyzer-preview.svg",
+      "fileName": "tinycloud-video-analyzer-preview.svg",
+      "mimeType": "image/svg+xml",
+      "sizeBytes": 3394,
+      "uploadedAt": "2026-04-28T06:53:09.000Z"
+    },
+    "zipAsset": null,
+    "updatedAt": "2026-04-28T06:53:09.000Z",
+    "accent": "amber"
+  },
+  {
+    "id": "workflow-browser-use-agent-browser-control",
+    "title": "browser-use Agent Browser Control",
+    "description": "Documents the external browser-use workflow for giving an agent direct control over a real browser: the agent can drive pages, forms, uploads, screenshots, extraction, and page evaluation through the browser-use CLI rather than Hermes native browser tools.",
+    "toolsUsed": [
+      "browser-use CLI",
+      "Headed browser mode",
+      "CDP attach or auto-connect",
+      "JSON/MCP mode",
+      "Browser sessions and profiles"
+    ],
+    "architecture": "browser-use is installed locally as an external browser automation CLI exposed at ~/.local/bin/browser-use and backed by its own isolated virtual environment. The workflow starts with an agent goal such as navigation, login, form completion, scraping, screenshot capture, or UI task execution. browser-use then drives the browser through explicit commands like open, click, type, input, scroll, upload, extract, eval, wait, and state, with optional headed mode, session naming, JSON output, MCP server mode, real-profile usage, or CDP attachment to an existing browser. This makes it a strong operator tool when a workflow needs a browser the agent can actually control instead of just inspect. Important current environment context: browser-use itself is working, browser profile access is available, and network is fine, but browser-use doctor reports cloudflared is not installed for tunnel support and profile-use is not installed for profile management. In prior WSL\u2194Windows experiments, CDP attachment flows were also sensitive to Windows Chrome launch details and network reachability, so that remains a practical caveat for future deeper automation.",
+    "diagramSource": {
+      "path": "fixtures/workflow-assets/workflow-browser-use-agent-browser-control/browser-use-agent-browser-control.excalidraw",
+      "fileName": "browser-use-agent-browser-control.excalidraw",
+      "mimeType": "application/vnd.excalidraw+json",
+      "sizeBytes": 8618,
+      "uploadedAt": "2026-04-28T07:31:24.000Z"
+    },
+    "diagramPreview": {
+      "path": "fixtures/workflow-assets/workflow-browser-use-agent-browser-control/browser-use-agent-browser-control-preview.svg",
+      "fileName": "browser-use-agent-browser-control-preview.svg",
+      "mimeType": "image/svg+xml",
+      "sizeBytes": 3741,
+      "uploadedAt": "2026-04-28T07:31:24.000Z"
+    },
+    "zipAsset": null,
+    "updatedAt": "2026-04-28T07:31:24.000Z",
+    "accent": "cyan"
+  },
+  {
+    "id": "workflow-higgsfield-mcp-device-auth",
+    "title": "Higgsfield MCP Device-Auth Setup",
+    "description": "Connects Cortex to Higgsfield's remote MCP through device-flow auth, persists a bearer for native HTTP MCP calls, then verifies live workspace, model, media, and generation-history tools while capturing the current blocker: the account is authenticated but sitting at 0 credits on the free plan.",
+    "toolsUsed": [
+      "Higgsfield MCP",
+      "Device-flow OAuth",
+      "Native HTTP MCP",
+      "HIGGSFIELD_MCP_TOKEN",
+      "Workspace and generation probes"
+    ],
+    "architecture": "Higgsfield's protected-resource metadata points Hermes-class clients to fnf-device-auth.higgsfield.ai instead of a clean standard OAuth discovery doc, so the workflow starts by requesting a device code from /authorize, sending the operator to the Higgsfield verification URI, polling /token until approval lands, and writing the returned bearer into Cortex as HIGGSFIELD_MCP_TOKEN. Cortex then calls the remote MCP endpoint at https://mcp.higgsfield.ai/mcp with an Authorization header through native HTTP MCP wiring and confirms usability by hitting balance, workspace, model, preset, history, and media tools. Current verified context: the connection is live as zaidekthecreator@gmail.com with a private workspace present, but the account is on the free plan with 0 credits, so browsing and management actions work while fresh paid generations remain blocked until credits are added; persistent local config wiring should also be cleaned up because the live connection is working even though the expected Cortex config/.env entries were not obvious on disk.",
+    "diagramSource": {
+      "path": "fixtures/workflow-assets/workflow-higgsfield-mcp-device-auth/higgsfield-mcp-device-auth.excalidraw",
+      "fileName": "higgsfield-mcp-device-auth.excalidraw",
+      "mimeType": "application/vnd.excalidraw+json",
+      "sizeBytes": 11341,
+      "uploadedAt": "2026-04-29T05:42:11.000Z"
+    },
+    "diagramPreview": {
+      "path": "fixtures/workflow-assets/workflow-higgsfield-mcp-device-auth/higgsfield-mcp-device-auth-preview.svg",
+      "fileName": "higgsfield-mcp-device-auth-preview.svg",
+      "mimeType": "image/svg+xml",
+      "sizeBytes": 5181,
+      "uploadedAt": "2026-04-29T05:42:11.000Z"
+    },
+    "zipAsset": null,
+    "updatedAt": "2026-04-29T05:42:11.000Z",
+    "accent": "magenta"
   }
 ]

@@ -16,6 +16,8 @@ import type {
   CortexSpeechSynthesisRequest,
   CortexRealtimeSessionRequest,
   CortexToolVoiceResponseRequest,
+  CortexVoiceActionConfirmation,
+  CortexVoiceActionRequest,
   WorkspaceContext,
 } from '../src/shared/cortex'
 import {
@@ -152,6 +154,13 @@ app.whenReady().then(async () => {
   ipcMain.handle('cortex:getDashboardSnapshot', () => runtime.getDashboardSnapshot())
   ipcMain.handle('cortex:getWorkspaceSnapshot', (_event, workspace: WorkspaceContext) =>
     runtime.getWorkspaceSnapshot(workspace),
+  )
+  ipcMain.handle('cortex:getDatabaseStatus', () => runtime.getDatabaseStatus())
+  ipcMain.handle('cortex:prepareVoiceAction', (_event, payload: CortexVoiceActionRequest) =>
+    runtime.prepareVoiceAction(payload),
+  )
+  ipcMain.handle('cortex:confirmVoiceAction', (_event, payload: CortexVoiceActionConfirmation) =>
+    runtime.confirmVoiceAction(payload),
   )
   ipcMain.handle('cortex:listAgents', () => runtime.listAgents())
   ipcMain.handle('cortex:listMemories', () => runtime.listMemories())

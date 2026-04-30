@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500">
+  <rect width="900" height="500" rx="30" fill="#070d1a" />
+  <rect x="40" y="54" width="176" height="76" rx="18" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+  <rect x="260" y="54" width="206" height="88" rx="18" fill="#27173d" stroke="#dd6fff" stroke-width="3" />
+  <rect x="514" y="54" width="222" height="98" rx="18" fill="#182929" stroke="#8bff8a" stroke-width="3" />
+  <rect x="260" y="196" width="230" height="88" rx="18" fill="#372118" stroke="#ffc86f" stroke-width="3" />
+  <rect x="540" y="196" width="214" height="76" rx="18" fill="#12283d" stroke="#67f4ff" stroke-width="3" />
+  <rect x="320" y="346" width="296" height="88" rx="18" fill="#372118" stroke="#ffc86f" stroke-width="3" />
+
+  <text x="128" y="92" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Agent Browser Goal</text>
+  <text x="128" y="112" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">site task / workflow / UI job</text>
+
+  <text x="363" y="88" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">browser-use CLI</text>
+  <text x="363" y="108" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">open / click / type / extract / eval</text>
+  <text x="363" y="126" fill="#f4b8ff" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">JSON / sessions / headed / MCP</text>
+
+  <text x="625" y="86" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Browser Control Layer</text>
+  <text x="625" y="106" fill="#b4f7b3" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">real profile / Chromium / CDP attach</text>
+  <text x="625" y="124" fill="#b4f7b3" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">sessions / tabs / files / state</text>
+
+  <text x="375" y="230" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Browser Actions</text>
+  <text x="375" y="250" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">navigate / form fill / upload / extract</text>
+  <text x="375" y="268" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">automation loops / page evaluation</text>
+
+  <text x="647" y="232" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Outputs + Evidence</text>
+  <text x="647" y="252" fill="#9fd5e5" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">screenshots / state / JSON / files</text>
+
+  <text x="468" y="380" fill="#edf8ff" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">Current Environment Status</text>
+  <text x="468" y="400" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">browser-use works; cloudflared/profile-use</text>
+  <text x="468" y="418" fill="#ffd79e" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">still missing in this environment</text>
+
+  <path d="M216 92h44" stroke="#67f4ff" stroke-width="4" stroke-linecap="round" />
+  <path d="M466 92h48" stroke="#dd6fff" stroke-width="4" stroke-linecap="round" />
+  <path d="M363 142v54" stroke="#ffc86f" stroke-width="4" stroke-linecap="round" />
+  <path d="M490 232h50" stroke="#ffc86f" stroke-width="4" stroke-linecap="round" />
+  <path d="M647 272v24H468v50" stroke="#67f4ff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="260" cy="92" r="6" fill="#67f4ff" />
+  <circle cx="514" cy="92" r="6" fill="#dd6fff" />
+  <circle cx="363" cy="196" r="6" fill="#ffc86f" />
+  <circle cx="540" cy="232" r="6" fill="#ffc86f" />
+</svg>

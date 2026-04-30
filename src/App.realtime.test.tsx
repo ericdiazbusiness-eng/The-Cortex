@@ -64,6 +64,15 @@ const createApiStub = (): CortexBridge => ({
         },
   ),
   getDashboardSnapshot: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA)),
+  getDatabaseStatus: vi.fn().mockResolvedValue({
+    configured: false,
+    connected: false,
+    source: 'browser_fallback',
+    checkedAt: new Date().toISOString(),
+    error: null,
+    workspaces: [],
+    tables: [],
+  }),
   listAgents: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.agentLanes)),
   listMemories: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.vaultEntries)),
   listWorkflows: vi.fn().mockResolvedValue(clone(DEFAULT_FALLBACK_DATA.workflows)),
@@ -95,6 +104,27 @@ const createApiStub = (): CortexBridge => ({
     stderr: '',
     ranAt: new Date().toISOString(),
     durationMs: 80,
+  }),
+  prepareVoiceAction: vi.fn().mockImplementation(async (payload) => ({
+    actionId: 'voice-action-1',
+    action: payload.action,
+    workspace: payload.workspace,
+    parameters: payload.parameters,
+    reason: payload.reason ?? null,
+    requiresConfirmation: true,
+    expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    summary: `${payload.action} prepared.`,
+  })),
+  confirmVoiceAction: vi.fn().mockResolvedValue({
+    actionId: 'voice-action-1',
+    action: 'refresh_workspace',
+    workspace: 'cortex',
+    ok: true,
+    confirmed: true,
+    canceled: false,
+    result: null,
+    error: null,
+    auditedAt: new Date().toISOString(),
   }),
   createRealtimeCall: vi.fn().mockResolvedValue('answer-sdp'),
   transcribeAudio: vi.fn().mockResolvedValue(''),
@@ -161,7 +191,7 @@ describe('The Cortex realtime voice flow', () => {
     })
 
     await user.click(screen.getByRole('link', { name: 'Xylos' }))
-    expect(await screen.findByText('Select a Xylos')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Choose a ZiB' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('link', { name: 'Overview' }))
     expect(await screen.findByText('Hello Zaidek')).toBeInTheDocument()

@@ -8,6 +8,7 @@ import {
   type CortexWorkflowUpdateInput,
 } from '@/shared/cortex'
 import { formatDateTime } from './mission-os-utils'
+import { buildWorkflowModels, getWorkspaceRoute } from './workspace-page-models'
 
 type ComposerMode = 'create' | 'edit' | null
 
@@ -71,6 +72,7 @@ const trimTools = (toolsUsed: string[]) =>
 
 export const WorkflowsPage = () => {
   const {
+    businessSnapshot,
     snapshot,
     uiFocus,
     focusUi,
@@ -79,6 +81,7 @@ export const WorkflowsPage = () => {
     updateWorkflow,
     deleteWorkflow,
     downloadWorkflowAsset,
+    uiMode,
   } = useCortex()
   const [composerMode, setComposerMode] = useState<ComposerMode>(null)
   const [composer, setComposer] = useState<ComposerState>(createEmptyComposer)
@@ -89,23 +92,31 @@ export const WorkflowsPage = () => {
   const [fileInputRevision, setFileInputRevision] = useState(0)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
+  const workflowRoute = getWorkspaceRoute(uiMode, '/cortex/workflows')
   const workflows = snapshot?.workflows ?? []
+  const workflowModels = buildWorkflowModels(uiMode, snapshot, businessSnapshot)
+  const selectedWorkflowModel =
+    workflowModels.find((workflow) => workflow.id === uiFocus.workflowId) ?? null
   const selectedWorkflow =
-    workflows.find((workflow) => workflow.id === uiFocus.workflowId) ?? null
+    uiMode === 'cortex'
+      ? workflows.find((workflow) => workflow.id === uiFocus.workflowId) ?? null
+      : null
+  const canMutateWorkflows = uiMode === 'cortex'
 
   useEffect(() => {
-    if (!snapshot) {
+    const nextWorkflowModels = buildWorkflowModels(uiMode, snapshot, businessSnapshot)
+    if (!nextWorkflowModels.length && (uiMode === 'cortex' ? !snapshot : !businessSnapshot)) {
       return
     }
 
     setViewContext({
       details: {
-        workflows: snapshot.workflows.length,
-        zippedWorkflows: snapshot.workflows.filter((workflow) => workflow.zipAsset).length,
-        focusedWorkflowId: selectedWorkflow?.id ?? null,
+        workflows: nextWorkflowModels.length,
+        zippedWorkflows: nextWorkflowModels.filter((workflow) => workflow.zipFileName).length,
+        focusedWorkflowId: selectedWorkflowModel?.id ?? null,
       },
     })
-  }, [selectedWorkflow?.id, setViewContext, snapshot])
+  }, [businessSnapshot, selectedWorkflowModel?.id, setViewContext, snapshot, uiMode])
 
   const startCreate = () => {
     setComposerMode('create')
@@ -312,37 +323,45 @@ export const WorkflowsPage = () => {
     }
   }
 
-  if (!snapshot) {
+  if (uiMode === 'cortex' ? !snapshot : !businessSnapshot) {
     return null
   }
 
   return (
-    <div className="mission-os-grid workflow-grid">
+    <div className="mission-os-grid workflow-grid page-motif-workflows">
       <Panel
-        title={selectedWorkflow ? 'Workflow Selector' : 'Workflow Registry'}
-        eyebrow="Scavenjer automations and runbooks"
+        title={selectedWorkflowModel ? 'Workflow Selector' : 'Workflow Registry'}
+        eyebrow={uiMode === 'business' ? 'Business owner loops and automations' : 'Scavenjer automations and runbooks'}
         className="minimal-panel"
       >
         <div className="workflow-toolbar">
           <p className="workflow-toolbar-copy">
-            {selectedWorkflow
-              ? 'Select a different Scavenjer workflow or open a new one. The detail view stays compact until you explicitly edit.'
-              : 'Choose a Scavenjer operations workflow, or create a new one for drops, minting, community, studio, or integrations.'}
+            {selectedWorkflowModel
+              ? uiMode === 'business'
+                ? 'Select a different business workflow loop. The shared detail view stays read-only until a live business workflow adapter exists.'
+                : 'Select a different Scavenjer workflow or open a new one. The detail view stays compact until you explicitly edit.'
+              : uiMode === 'business'
+                ? 'Choose a business owner workflow for proposals, delivery, finance, relationships, studio, or integrations.'
+                : 'Choose a Scavenjer operations workflow, or create a new one for drops, minting, community, studio, or integrations.'}
           </p>
-          <button type="button" className="command-button primary" onClick={startCreate}>
-            New Workflow
-          </button>
+          {canMutateWorkflows ? (
+            <button type="button" className="command-button primary" onClick={startCreate}>
+              New Workflow
+            </button>
+          ) : (
+            <span className="status-badge status-active">read-only loops</span>
+          )}
         </div>
 
-        <div className={`workflow-catalog${selectedWorkflow ? ' is-compact' : ' is-selector'}`}>
-          {workflows.map((workflow) => (
+        <div className={`workflow-catalog${selectedWorkflowModel ? ' is-compact' : ' is-selector'}`}>
+          {workflowModels.map((workflow) => (
             <button
               key={workflow.id}
               type="button"
-              className={`record-card workflow-card workflow-selector-card accent-${workflow.accent}${selectedWorkflow?.id === workflow.id ? ' is-focused' : ''}`}
+              className={`record-card workflow-card workflow-selector-card accent-${workflow.accent}${selectedWorkflowModel?.id === workflow.id ? ' is-focused' : ''}`}
               onClick={() =>
                 focusUi({
-                  route: '/cortex/workflows',
+                  route: workflowRoute,
                   workflowId: workflow.id,
                 })
               }
@@ -353,7 +372,7 @@ export const WorkflowsPage = () => {
         </div>
       </Panel>
 
-      {selectedWorkflow ? (
+      {selectedWorkflowModel ? (
         <div className="mission-os-detail-grid workflow-detail-grid">
           <Panel title="Workflow Opener" eyebrow="Selected workflow detail" className="minimal-panel">
             <div className="workflow-opener workflow-detail-scroll">
@@ -361,9 +380,9 @@ export const WorkflowsPage = () => {
                 <div>
                   <div className="record-card-head">
                     <span className="status-badge status-active">workflow</span>
-                    <span className="record-card-meta">{formatDateTime(selectedWorkflow.updatedAt)}</span>
+                    <span className="record-card-meta">{formatDateTime(selectedWorkflowModel.updatedAt)}</span>
                   </div>
-                  <h3>{selectedWorkflow.title}</h3>
+                  <h3>{selectedWorkflowModel.title}</h3>
                 </div>
 
                 <div className="command-row compact">
@@ -372,33 +391,37 @@ export const WorkflowsPage = () => {
                     className="command-button secondary"
                     onClick={() =>
                       focusUi({
-                        route: '/cortex/workflows',
+                        route: workflowRoute,
                         workflowId: null,
                       })
                     }
                   >
                     Back
                   </button>
-                  <button type="button" className="command-button secondary" onClick={startEdit}>
-                    Edit
-                  </button>
-                  <button type="button" className="command-button danger" onClick={handleDelete}>
-                    Delete
-                  </button>
+                  {canMutateWorkflows ? (
+                    <>
+                      <button type="button" className="command-button secondary" onClick={startEdit}>
+                        Edit
+                      </button>
+                      <button type="button" className="command-button danger" onClick={handleDelete}>
+                        Delete
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
 
-              <p className="workflow-body-copy">{selectedWorkflow.description}</p>
+              <p className="workflow-body-copy">{selectedWorkflowModel.description}</p>
 
               <button
                 type="button"
                 className="workflow-preview-frame workflow-preview-button"
                 onClick={() => setIsPreviewOpen(true)}
               >
-                {selectedWorkflow.diagramPreview.previewUrl ? (
+                {selectedWorkflowModel.diagramPreviewUrl ? (
                   <img
-                    src={selectedWorkflow.diagramPreview.previewUrl}
-                    alt={`${selectedWorkflow.title} workflow preview`}
+                    src={selectedWorkflowModel.diagramPreviewUrl}
+                    alt={`${selectedWorkflowModel.title} workflow preview`}
                     className="workflow-preview-image"
                   />
                 ) : (
@@ -414,7 +437,7 @@ export const WorkflowsPage = () => {
                 <div className="record-footnote workflow-detail-card">
                   <strong>Tools Used</strong>
                   <div className="chip-row compact">
-                    {selectedWorkflow.toolsUsed.map((tool) => (
+                    {selectedWorkflowModel.toolsUsed.map((tool) => (
                       <span key={tool} className="data-chip">
                         {tool}
                       </span>
@@ -423,44 +446,50 @@ export const WorkflowsPage = () => {
                 </div>
                 <div className="record-footnote workflow-detail-card">
                   <strong>Architecture</strong>
-                  <span>{selectedWorkflow.architecture}</span>
+                  <span>{selectedWorkflowModel.architecture}</span>
                 </div>
               </div>
 
               <div className="workflow-asset-grid">
                 <div className="record-footnote workflow-detail-card">
                   <strong>Excalidraw Source</strong>
-                  <span>{selectedWorkflow.diagramSource.fileName}</span>
-                  <button
-                    type="button"
-                    className="command-button secondary"
-                    onClick={() => handleDownload('diagramSource')}
-                  >
-                    Download Source
-                  </button>
+                  <span>{selectedWorkflowModel.diagramSourceFileName}</span>
+                  {canMutateWorkflows ? (
+                    <button
+                      type="button"
+                      className="command-button secondary"
+                      onClick={() => handleDownload('diagramSource')}
+                    >
+                      Download Source
+                    </button>
+                  ) : null}
                 </div>
                 <div className="record-footnote workflow-detail-card">
                   <strong>Preview Image</strong>
-                  <span>{selectedWorkflow.diagramPreview.fileName}</span>
-                  <button
-                    type="button"
-                    className="command-button secondary"
-                    onClick={() => handleDownload('diagramPreview')}
-                  >
-                    Download Preview
-                  </button>
+                  <span>{selectedWorkflowModel.diagramPreviewFileName}</span>
+                  {canMutateWorkflows ? (
+                    <button
+                      type="button"
+                      className="command-button secondary"
+                      onClick={() => handleDownload('diagramPreview')}
+                    >
+                      Download Preview
+                    </button>
+                  ) : null}
                 </div>
                 <div className="record-footnote workflow-detail-card">
                   <strong>ZIP Bundle</strong>
-                  <span>{selectedWorkflow.zipAsset?.fileName ?? 'No ZIP attached'}</span>
-                  <button
-                    type="button"
-                    className="command-button secondary"
-                    disabled={!selectedWorkflow.zipAsset}
-                    onClick={() => handleDownload('zipAsset')}
-                  >
-                    Download ZIP
-                  </button>
+                  <span>{selectedWorkflowModel.zipFileName ?? 'No ZIP attached'}</span>
+                  {canMutateWorkflows ? (
+                    <button
+                      type="button"
+                      className="command-button secondary"
+                      disabled={!selectedWorkflow?.zipAsset}
+                      onClick={() => handleDownload('zipAsset')}
+                    >
+                      Download ZIP
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
@@ -468,7 +497,7 @@ export const WorkflowsPage = () => {
             </div>
           </Panel>
 
-          {composerMode ? (
+          {composerMode && canMutateWorkflows ? (
             <Panel
               title={composerMode === 'edit' ? 'Edit Workflow' : 'Create Workflow'}
               eyebrow="Structured workflow record"

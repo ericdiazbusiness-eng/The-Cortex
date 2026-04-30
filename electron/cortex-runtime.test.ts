@@ -107,6 +107,74 @@ describe('cortex runtime', () => {
     })
   })
 
+  it('prepares voice actions without executing until confirmation and audits details', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'cortex-runtime-'))
+    cleanupPaths.push(dir)
+    const runtime = createCortexRuntime(dir, {
+      gatewayProbe: vi.fn().mockResolvedValue(DEFAULT_GATEWAY_STATE),
+    })
+
+    const prepared = await runtime.prepareVoiceAction({
+      action: 'run_workspace_command',
+      workspace: 'cortex',
+      parameters: {
+        commandId: 'sync-drop-lane',
+        context: 'voice confirmation test',
+      },
+      reason: 'Run the drop lane sync.',
+      transcript: 'Please run the drop lane sync.',
+    })
+
+    expect(prepared.requiresConfirmation).toBe(true)
+    expect((await runtime.listLogs())[0]?.message).toContain('Prepared voice action')
+
+    const result = await runtime.confirmVoiceAction({
+      actionId: prepared.actionId,
+      confirmed: true,
+      transcript: 'Confirmed, run it.',
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      confirmed: true,
+      canceled: false,
+      workspace: 'cortex',
+      action: 'run_workspace_command',
+    })
+    expect((await runtime.listLogs())[0]?.message).toEqual(
+      expect.stringContaining('Confirmed voice action run_workspace_command'),
+    )
+    expect((await runtime.listLogs())[0]?.message).toEqual(
+      expect.stringContaining('Confirmed, run it.'),
+    )
+    expect((await runtime.listLogs())[0]?.message).toEqual(
+      expect.stringContaining('sync-drop-lane'),
+    )
+  })
+
+  it('reports database status without requiring Supabase configuration', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'cortex-runtime-'))
+    cleanupPaths.push(dir)
+    const runtime = createCortexRuntime(dir)
+
+    const status = await runtime.getDatabaseStatus()
+
+    expect(typeof status.connected).toBe('boolean')
+    expect(status.workspaces).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          workspace: 'cortex',
+          source: expect.any(String),
+        }),
+        expect.objectContaining({
+          workspace: 'business',
+          source: 'fixtures',
+        }),
+      ]),
+    )
+    expect(status.tables.length).toBeGreaterThan(0)
+  })
+
   it('persists created workflows and downloads workflow assets', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'cortex-workflows-'))
     cleanupPaths.push(dir)
@@ -207,6 +275,81 @@ describe('cortex runtime', () => {
 
       unsubscribe()
     } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('hydrates live overview usage indicators into snapshots and pulse events', async () => {
+    vi.useFakeTimers()
+    const previousRefreshMs = process.env.CORTEX_USAGE_REFRESH_MS
+    process.env.CORTEX_USAGE_REFRESH_MS = '1000'
+    try {
+      const dir = await mkdtemp(path.join(os.tmpdir(), 'cortex-runtime-'))
+      cleanupPaths.push(dir)
+      const usageIndicators = [
+        {
+          id: 'elevenlabs',
+          label: 'ElevenLabs',
+          detail: '87,915 / 90,000 characters remaining this cycle.',
+          symbol: 'E',
+          value: 98,
+          tone: 'magenta' as const,
+          source: 'live' as const,
+          refreshedAt: '2026-04-27T18:40:00.000Z',
+        },
+        {
+          id: 'codex_session',
+          label: 'Codex Session',
+          detail: '90% remaining · resets Apr 27, 8:18 PM',
+          symbol: 'S',
+          value: 90,
+          tone: 'cyan' as const,
+          source: 'live' as const,
+          refreshedAt: '2026-04-27T18:40:00.000Z',
+        },
+        {
+          id: 'codex_weekly',
+          label: 'Codex Weekly',
+          detail: '95% remaining · resets May 4, 1:34 AM',
+          symbol: 'W',
+          value: 95,
+          tone: 'green' as const,
+          source: 'live' as const,
+          refreshedAt: '2026-04-27T18:40:00.000Z',
+        },
+      ]
+      const runtime = createCortexRuntime(dir, {
+        gatewayProbe: vi.fn().mockResolvedValue(DEFAULT_GATEWAY_STATE),
+        usageProbe: vi.fn().mockResolvedValue(usageIndicators),
+      })
+
+      const snapshot = await runtime.getDashboardSnapshot()
+      expect(snapshot.usageIndicators).toEqual(usageIndicators)
+
+      const events: CortexStreamEvent[] = []
+      const unsubscribe = runtime.subscribeToEvents((event) => {
+        events.push(event)
+      })
+
+      await vi.advanceTimersByTimeAsync(60_000)
+      await Promise.resolve()
+
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'usagePulse',
+            indicators: usageIndicators,
+          }),
+        ]),
+      )
+
+      unsubscribe()
+    } finally {
+      if (previousRefreshMs === undefined) {
+        delete process.env.CORTEX_USAGE_REFRESH_MS
+      } else {
+        process.env.CORTEX_USAGE_REFRESH_MS = previousRefreshMs
+      }
       vi.useRealTimers()
     }
   })

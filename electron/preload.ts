@@ -9,6 +9,9 @@ const cortexApi: CortexBridge = {
   getWorkspaceSnapshot: (workspace) =>
     ipcRenderer.invoke('cortex:getWorkspaceSnapshot', workspace),
   getDashboardSnapshot: () => ipcRenderer.invoke('cortex:getDashboardSnapshot'),
+  getDatabaseStatus: () => ipcRenderer.invoke('cortex:getDatabaseStatus'),
+  prepareVoiceAction: (payload) => ipcRenderer.invoke('cortex:prepareVoiceAction', payload),
+  confirmVoiceAction: (payload) => ipcRenderer.invoke('cortex:confirmVoiceAction', payload),
   listAgents: () => ipcRenderer.invoke('cortex:listAgents'),
   listMemories: () => ipcRenderer.invoke('cortex:listMemories'),
   listWorkflows: () => ipcRenderer.invoke('cortex:listWorkflows'),

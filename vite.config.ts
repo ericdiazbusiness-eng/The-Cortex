@@ -27,6 +27,13 @@ export default defineConfig(() => {
             electron({
               main: {
                 entry: 'electron/main.ts',
+                vite: {
+                  build: {
+                    rollupOptions: {
+                      external: ['pg'],
+                    },
+                  },
+                },
                 async onstart({ startup }) {
                   await startup(devArgv, {
                     cwd: rootDir,
