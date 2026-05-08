@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Dark arena environment thumbnail">
+  <rect width="320" height="220" rx="16" fill="#05070d"/>
+  <ellipse cx="160" cy="164" rx="112" ry="34" fill="#111827" stroke="#18d9ff" stroke-width="4"/>
+  <path d="M64 164h192M92 146l-24 32M130 136l-10 56M190 136l10 56M228 146l24 32" stroke="#334155" stroke-width="3"/>
+  <path d="M160 62l18 36 40 6-29 28 7 40-36-19-36 19 7-40-29-28 40-6z" fill="#00ff88" opacity=".2" stroke="#7ee787" stroke-width="5"/>
+  <circle cx="160" cy="116" r="10" fill="#7ee787"/>
+  <path d="M56 58h26M238 58h26M72 96h18M230 96h18" stroke="#e879f9" stroke-width="4" stroke-linecap="round"/>
+</svg>

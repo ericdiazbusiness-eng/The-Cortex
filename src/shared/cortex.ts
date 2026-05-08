@@ -580,12 +580,47 @@ export type CortexWorkflowAsset = {
   previewUrl?: string | null
 }
 
+export type CortexWorkflowGraphNodeKind =
+  | 'trigger'
+  | 'agent'
+  | 'tool'
+  | 'service'
+  | 'decision'
+  | 'storage'
+  | 'output'
+
+export type CortexWorkflowGraphNode = {
+  id: string
+  label: string
+  detail?: string
+  kind: CortexWorkflowGraphNodeKind
+  accent?: AccentTone
+  x: number
+  y: number
+}
+
+export type CortexWorkflowGraphEdge = {
+  id: string
+  from: string
+  to: string
+  label?: string
+}
+
+export type CortexWorkflowGraph = {
+  version: 1
+  layout: 'flowchart-canvas' | 'agent-canvas'
+  nodes: CortexWorkflowGraphNode[]
+  edges: CortexWorkflowGraphEdge[]
+  note?: string
+}
+
 export type CortexWorkflow = {
   id: string
   title: string
   description: string
   toolsUsed: string[]
   architecture: string
+  diagramGraph?: CortexWorkflowGraph | null
   diagramSource: CortexWorkflowAsset
   diagramPreview: CortexWorkflowAsset
   zipAsset?: CortexWorkflowAsset | null
@@ -625,6 +660,7 @@ export type CortexWorkflowCreateInput = {
   description: string
   toolsUsed: string[]
   architecture: string
+  diagramGraph?: CortexWorkflowGraph | null
   diagramSource: CortexWorkflowAssetUpload
   diagramPreview: CortexWorkflowAssetUpload
   zipAsset?: CortexWorkflowAssetUpload | null
@@ -636,6 +672,7 @@ export type CortexWorkflowUpdateInput = {
   description: string
   toolsUsed: string[]
   architecture: string
+  diagramGraph?: CortexWorkflowGraph | null
   diagramSource: CortexWorkflowRequiredAssetMutation
   diagramPreview: CortexWorkflowRequiredAssetMutation
   zipAsset: CortexWorkflowOptionalAssetMutation
@@ -652,6 +689,16 @@ export type CortexWorkflowAssetDownloadResult = {
   filePath: string | null
 }
 
+export type CortexWorkflowAssetContentRequest = CortexWorkflowAssetDownloadRequest
+
+export type CortexWorkflowAssetContentResult = {
+  fileName: string
+  mimeType: string
+  sizeBytes: number
+  dataBase64: string
+  text: string | null
+}
+
 export type CortexLoreEntry = {
   id: string
   title: string
@@ -662,6 +709,72 @@ export type CortexLoreEntry = {
   linkedAssetIds: string[]
   consistencyNotes: string[]
   accent: AccentTone
+}
+
+export type CortexLoreCanonStatus = 'stable' | 'review' | 'conflict' | 'draft'
+
+export type CortexLoreSourceRef = {
+  label: string
+  source: 'Notion' | 'Scav Repo' | 'Cortex' | 'Scavenjer Site'
+}
+
+export type CortexLoreRecordBase = {
+  id: string
+  title: string
+  summary: string
+  canonStatus: CortexLoreCanonStatus
+  accent: AccentTone
+  imageUrl: string
+  aesthetic: string
+  automationContext: string
+  personalityContext: string
+  visualPrompt: string
+  sourceRefs: CortexLoreSourceRef[]
+  relatedCharacterIds: string[]
+  relatedEnvironmentIds: string[]
+  relatedFactionIds: string[]
+  relatedArtifactIds: string[]
+  tags: string[]
+}
+
+export type CortexLoreUniverse = CortexLoreRecordBase & {
+  kind: 'universe'
+  layer: 'anchor' | 'resonance' | 'mythic'
+  storyline: string
+  direction: string
+}
+
+export type CortexLoreCharacter = CortexLoreRecordBase & {
+  kind: 'character'
+  role: string
+  universeId: string
+  clan?: string
+}
+
+export type CortexLoreEnvironment = CortexLoreRecordBase & {
+  kind: 'environment'
+  universeId: string
+  environmentType: 'sector' | 'planet' | 'city' | 'arena' | 'drop-zone'
+}
+
+export type CortexLoreFaction = CortexLoreRecordBase & {
+  kind: 'faction'
+  universeId: string
+  agenda: string
+}
+
+export type CortexLoreArtifact = CortexLoreRecordBase & {
+  kind: 'artifact'
+  universeId: string
+  function: string
+}
+
+export type CortexLoreAtlas = {
+  loreUniverses: CortexLoreUniverse[]
+  loreCharacters: CortexLoreCharacter[]
+  loreEnvironments: CortexLoreEnvironment[]
+  loreFactions: CortexLoreFaction[]
+  loreArtifacts: CortexLoreArtifact[]
 }
 
 export type CortexStudioAsset = {
@@ -866,7 +979,22 @@ export type CortexStreamEvent =
   | { kind: 'gatewayPulse'; gateway: CortexGatewayState }
   | { kind: 'usagePulse'; indicators: CortexUsageIndicator[] }
 
+export type CortexDesktopWindowState = {
+  overlayEnabled: boolean
+  visible: boolean
+  alwaysOnTop: boolean
+  interactive: true
+  shortcuts: {
+    toggleVisibility: string
+    toggleOverlay: string
+    quit: string
+  }
+}
+
 export type CortexBridge = {
+  getDesktopWindowState: () => Promise<CortexDesktopWindowState>
+  setDesktopOverlayEnabled: (enabled: boolean) => Promise<CortexDesktopWindowState>
+  toggleDesktopWindowVisibility: () => Promise<CortexDesktopWindowState>
   getWorkspaceSnapshot: (workspace: WorkspaceContext) => Promise<WorkspaceSnapshot>
   getDashboardSnapshot: () => Promise<CortexDashboardSnapshot>
   getDatabaseStatus: () => Promise<CortexDatabaseStatus>
@@ -881,6 +1009,9 @@ export type CortexBridge = {
   downloadWorkflowAsset: (
     payload: CortexWorkflowAssetDownloadRequest,
   ) => Promise<CortexWorkflowAssetDownloadResult>
+  getWorkflowAssetContent: (
+    payload: CortexWorkflowAssetContentRequest,
+  ) => Promise<CortexWorkflowAssetContentResult>
   runWorkspaceCommand: (
     workspace: WorkspaceContext,
     commandId: string,
@@ -1303,6 +1434,168 @@ export const DEFAULT_UI_FOCUS: CortexUiFocus = {
   auditEventId: null,
   communitySignalId: null,
   revision: 0,
+}
+
+const WORKFLOW_PREVIEW_TONES: Record<AccentTone | 'blue', { stroke: string; fill: string; sub: string }> = {
+  cyan: { stroke: '#67f4ff', fill: '#10283a', sub: '#9fd5e5' },
+  amber: { stroke: '#ffc86f', fill: '#352515', sub: '#ffd79e' },
+  green: { stroke: '#8bff8a', fill: '#15301f', sub: '#b4f7b3' },
+  magenta: { stroke: '#dd6fff', fill: '#2d193f', sub: '#f4b8ff' },
+  red: { stroke: '#ff7c8d', fill: '#371821', sub: '#ffc7d0' },
+  blue: { stroke: '#7aa7ff', fill: '#132542', sub: '#b7caff' },
+}
+
+const WORKFLOW_PREVIEW_SEQUENCE: Array<AccentTone | 'blue'> = [
+  'cyan',
+  'magenta',
+  'amber',
+  'green',
+  'blue',
+]
+
+const escapeWorkflowPreviewText = (value: string) =>
+  value.replace(/[&<>"]/g, (character) => {
+    if (character === '&') return '&amp;'
+    if (character === '<') return '&lt;'
+    if (character === '>') return '&gt;'
+    return '&quot;'
+  })
+
+const wrapWorkflowPreviewText = (value: string, maxChars: number, maxLines: number) => {
+  const words = value.replace(/[\u2013\u2014]/g, '-').split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let line = ''
+
+  for (const word of words) {
+    const nextLine = line ? `${line} ${word}` : word
+    if (nextLine.length > maxChars && line) {
+      lines.push(line)
+      line = word
+      if (lines.length === maxLines - 1) {
+        break
+      }
+    } else {
+      line = nextLine
+    }
+  }
+
+  if (line && lines.length < maxLines) {
+    lines.push(line)
+  }
+
+  if (lines.length === maxLines && words.join(' ').length > lines.join(' ').length) {
+    lines[maxLines - 1] = `${lines[maxLines - 1].replace(/\.\.\.$/, '')}...`
+  }
+
+  return lines
+}
+
+const buildWorkflowPreviewNode = ({
+  x,
+  y,
+  width,
+  height,
+  tone,
+  label,
+  detail,
+  pill = false,
+}: {
+  x: number
+  y: number
+  width: number
+  height: number
+  tone: AccentTone | 'blue'
+  label: string
+  detail?: string
+  pill?: boolean
+}) => {
+  const palette = WORKFLOW_PREVIEW_TONES[tone]
+  const titleLines = wrapWorkflowPreviewText(label, 42, 2)
+  const detailLines = detail ? wrapWorkflowPreviewText(detail, 58, 2) : []
+  const titleStart = y + (detailLines.length ? 30 : 40) - (titleLines.length - 1) * 11
+  const detailStart = titleStart + titleLines.length * 24 + 6
+  const titleSvg = titleLines
+    .map(
+      (line, index) =>
+        `<text x="${x + width / 2}" y="${titleStart + index * 24}" fill="#edf8ff" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">${escapeWorkflowPreviewText(line)}</text>`,
+    )
+    .join('')
+  const detailSvg = detailLines
+    .map(
+      (line, index) =>
+        `<text x="${x + width / 2}" y="${detailStart + index * 20}" fill="${palette.sub}" font-family="Arial, sans-serif" font-size="15" text-anchor="middle">${escapeWorkflowPreviewText(line)}</text>`,
+    )
+    .join('')
+
+  return `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${pill ? 38 : 18}" fill="${palette.fill}" fill-opacity="0.9" stroke="${palette.stroke}" stroke-width="3"/>${titleSvg}${detailSvg}`
+}
+
+const buildWorkflowPreviewDataUrl = ({
+  title,
+  description,
+  toolsUsed,
+  accent,
+}: {
+  title: string
+  description: string
+  toolsUsed: string[]
+  accent: AccentTone
+}) => {
+  const visibleTools = toolsUsed.slice(0, 6)
+  const hiddenToolCount = toolsUsed.length - visibleTools.length
+  const steps = [
+    { label: title, detail: description, tone: accent, pill: true },
+    ...visibleTools.map((tool, index) => ({
+      label: tool,
+      detail: index === 0 ? 'Agent handoff and workflow step' : 'Provider action inside the run',
+      tone: WORKFLOW_PREVIEW_SEQUENCE[index % WORKFLOW_PREVIEW_SEQUENCE.length],
+      pill: false,
+    })),
+    ...(hiddenToolCount > 0
+      ? [
+          {
+            label: `${hiddenToolCount} more tools`,
+            detail: 'Additional providers remain attached to this workflow',
+            tone: 'blue' as const,
+            pill: false,
+          },
+        ]
+      : []),
+    {
+      label: 'Reviewable Output',
+      detail: 'Agent-ready result, source files, and operator review path',
+      tone: 'green' as const,
+      pill: true,
+    },
+  ]
+  const width = 1280
+  const nodeWidth = 760
+  const nodeHeight = 108
+  const gap = 42
+  const top = 48
+  const x = (width - nodeWidth) / 2
+  const height = top * 2 + steps.length * nodeHeight + (steps.length - 1) * gap
+  const defs = WORKFLOW_PREVIEW_SEQUENCE.concat('blue')
+    .map((tone) => {
+      const palette = WORKFLOW_PREVIEW_TONES[tone]
+      return `<marker id="arrow-${tone}" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="${palette.stroke}"/></marker>`
+    })
+    .join('')
+  const body = steps
+    .map((step, index) => {
+      const y = top + index * (nodeHeight + gap)
+      const palette = WORKFLOW_PREVIEW_TONES[step.tone]
+      const connector =
+        index === steps.length - 1
+          ? ''
+          : `<path d="M${width / 2} ${y + nodeHeight + 8} C ${width / 2} ${y + nodeHeight + 36}, ${width / 2} ${y + nodeHeight + gap - 36}, ${width / 2} ${y + nodeHeight + gap - 8}" stroke="${palette.stroke}" stroke-width="4" fill="none" stroke-linecap="round" marker-end="url(#arrow-${step.tone})"/>`
+
+      return `${buildWorkflowPreviewNode({ x, y, width: nodeWidth, height: nodeHeight, ...step })}${connector}`
+    })
+    .join('')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><defs>${defs}</defs>${body}</svg>`
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 }
 
 export const DEFAULT_FALLBACK_DATA: CortexDashboardSnapshot = {
@@ -1788,8 +2081,13 @@ export const DEFAULT_FALLBACK_DATA: CortexDashboardSnapshot = {
         mimeType: 'image/svg+xml',
         sizeBytes: 1736,
         uploadedAt: '2026-04-27T08:20:00.000Z',
-        previewUrl:
-          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><rect width="640" height="360" rx="28" fill="%23070d1a"/><rect x="44" y="68" width="148" height="70" rx="16" fill="%2312283d" stroke="%2367f4ff" stroke-width="3"/><rect x="246" y="68" width="148" height="70" rx="16" fill="%23182929" stroke="%238bff8a" stroke-width="3"/><rect x="448" y="68" width="148" height="70" rx="16" fill="%2327173d" stroke="%23dd6fff" stroke-width="3"/><rect x="246" y="224" width="148" height="70" rx="16" fill="%23372118" stroke="%23ffc86f" stroke-width="3"/><text x="118" y="108" fill="%23edf8ff" font-family="Arial" font-size="18" text-anchor="middle">Cron Trigger</text><text x="320" y="108" fill="%23edf8ff" font-family="Arial" font-size="18" text-anchor="middle">Normalizer</text><text x="522" y="108" fill="%23edf8ff" font-family="Arial" font-size="18" text-anchor="middle">Notion Sync</text><text x="320" y="264" fill="%23edf8ff" font-family="Arial" font-size="18" text-anchor="middle">Vault Update</text><path d="M192 103h54" stroke="%2367f4ff" stroke-width="4" stroke-linecap="round"/><path d="M394 103h54" stroke="%238bff8a" stroke-width="4" stroke-linecap="round"/><path d="M320 138v82" stroke="%23ffc86f" stroke-width="4" stroke-linecap="round"/><circle cx="246" cy="103" r="6" fill="%2367f4ff"/><circle cx="448" cy="103" r="6" fill="%238bff8a"/><circle cx="320" cy="220" r="6" fill="%23ffc86f"/></svg>',
+        previewUrl: buildWorkflowPreviewDataUrl({
+          title: 'Drop Request To Live Drop',
+          description:
+            'Converts a user or host drop request into an approved AR drop with asset, registration threshold, time-slot vote, Discord announcement, and completion evidence.',
+          toolsUsed: ['Supabase', 'Discord webhook', 'Drop scheduler', 'Host approval'],
+          accent: 'cyan',
+        }),
       },
       zipAsset: null,
       updatedAt: '2026-04-27T08:20:00.000Z',
@@ -1816,8 +2114,13 @@ export const DEFAULT_FALLBACK_DATA: CortexDashboardSnapshot = {
         mimeType: 'image/svg+xml',
         sizeBytes: 1762,
         uploadedAt: '2026-04-27T07:58:00.000Z',
-        previewUrl:
-          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><rect width="640" height="360" rx="28" fill="%23070d1a"/><rect x="48" y="76" width="164" height="64" rx="16" fill="%2312283d" stroke="%2367f4ff" stroke-width="3"/><rect x="238" y="76" width="164" height="64" rx="16" fill="%23372118" stroke="%23ffc86f" stroke-width="3"/><rect x="428" y="76" width="164" height="64" rx="16" fill="%2327173d" stroke="%23dd6fff" stroke-width="3"/><rect x="238" y="220" width="164" height="64" rx="16" fill="%23182929" stroke="%238bff8a" stroke-width="3"/><text x="130" y="114" fill="%23edf8ff" font-family="Arial" font-size="18" text-anchor="middle">Cron Audit</text><text x="320" y="114" fill="%23edf8ff" font-family="Arial" font-size="18" text-anchor="middle">Spend Diff</text><text x="510" y="114" fill="%23edf8ff" font-family="Arial" font-size="18" text-anchor="middle">Approval Packet</text><text x="320" y="258" fill="%23edf8ff" font-family="Arial" font-size="18" text-anchor="middle">Operations Feed</text><path d="M212 108h26" stroke="%2367f4ff" stroke-width="4" stroke-linecap="round"/><path d="M402 108h26" stroke="%23ffc86f" stroke-width="4" stroke-linecap="round"/><path d="M320 140v80" stroke="%238bff8a" stroke-width="4" stroke-linecap="round"/><circle cx="238" cy="108" r="6" fill="%2367f4ff"/><circle cx="428" cy="108" r="6" fill="%23ffc86f"/><circle cx="320" cy="220" r="6" fill="%238bff8a"/></svg>',
+        previewUrl: buildWorkflowPreviewDataUrl({
+          title: 'Mint Job Triage',
+          description:
+            'Monitors support shop purchases, Stripe sessions, wallet delivery, retry counts, transaction hashes, and failed mints before they become support issues.',
+          toolsUsed: ['Stripe', 'Crossmint', 'Supabase', 'Wallet lookup'],
+          accent: 'amber',
+        }),
       },
       zipAsset: null,
       updatedAt: '2026-04-27T07:58:00.000Z',
@@ -1850,12 +2153,82 @@ export const DEFAULT_FALLBACK_DATA: CortexDashboardSnapshot = {
         mimeType: 'image/svg+xml',
         sizeBytes: 3613,
         uploadedAt: '2026-04-27T23:20:00.000Z',
-        previewUrl:
-          'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3NjAgNDIwIj4KICA8cmVjdCB3aWR0aD0iNzYwIiBoZWlnaHQ9IjQyMCIgcng9IjMwIiBmaWxsPSIjMDcwZDFhIiAvPgogIDxyZWN0IHg9IjQ0IiB5PSI1OCIgd2lkdGg9IjE1MCIgaGVpZ2h0PSI3NCIgcng9IjE4IiBmaWxsPSIjMTIyODNkIiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KICA8cmVjdCB4PSIyMzYiIHk9IjU4IiB3aWR0aD0iMTUwIiBoZWlnaHQ9Ijc0IiByeD0iMTgiIGZpbGw9IiMxODI5MjkiIHN0cm9rZT0iIzhiZmY4YSIgc3Ryb2tlLXdpZHRoPSIzIiAvPgogIDxyZWN0IHg9IjQyOCIgeT0iNTgiIHdpZHRoPSIxNTAiIGhlaWdodD0iNzQiIHJ4PSIxOCIgZmlsbD0iIzI3MTczZCIgc3Ryb2tlPSIjZGQ2ZmZmIiBzdHJva2Utd2lkdGg9IjMiIC8+CiAgPHJlY3QgeD0iMjM2IiB5PSIxNzYiIHdpZHRoPSIxNTAiIGhlaWdodD0iNzQiIHJ4PSIxOCIgZmlsbD0iIzM3MjExOCIgc3Ryb2tlPSIjZmZjODZmIiBzdHJva2Utd2lkdGg9IjMiIC8+CiAgPHJlY3QgeD0iNDI4IiB5PSIxNzYiIHdpZHRoPSIxNTAiIGhlaWdodD0iNzQiIHJ4PSIxOCIgZmlsbD0iIzE4MjkyOSIgc3Ryb2tlPSIjOGJmZjhhIiBzdHJva2Utd2lkdGg9IjMiIC8+CiAgPHJlY3QgeD0iNjIwIiB5PSIxNzYiIHdpZHRoPSI5NiIgaGVpZ2h0PSI3NCIgcng9IjE4IiBmaWxsPSIjMTIyODNkIiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KICA8cmVjdCB4PSIzMzIiIHk9IjMwMiIgd2lkdGg9IjE1MCIgaGVpZ2h0PSI3NCIgcng9IjE4IiBmaWxsPSIjMjcxNzNkIiBzdHJva2U9IiNkZDZmZmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KCiAgPHRleHQgeD0iMTE5IiB5PSIxMDMiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Rm9vZCBFZGl0czwvdGV4dD4KICA8dGV4dCB4PSIxMTkiIHk9IjEyMyIgZmlsbD0iIzlmZDVlNSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Ecml2ZSBTb3VyY2U8L3RleHQ+CgogIDx0ZXh0IHg9IjMxMSIgeT0iMTAzIiBmaWxsPSIjZWRmOGZmIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTciIHRleHQtYW5jaG9yPSJtaWRkbGUiPkNvZGV4IEVkaXQ8L3RleHQ+CiAgPHRleHQgeD0iMzExIiB5PSIxMjMiIGZpbGw9IiNiNGY3YjMiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UHJlc2VydmUgUGxhdGU8L3RleHQ+CgogIDx0ZXh0IHg9IjUwMyIgeT0iOTUiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Rml2ZSBTaG90IFByb2ZpbGVzPC90ZXh0PgogIDx0ZXh0IHg9IjUwMyIgeT0iMTE0IiBmaWxsPSIjZjRiOGZmIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmhlcm8gLyAzLXF1YXJ0ZXIgLyBjbG9zZTwvdGV4dD4KICA8dGV4dCB4PSI1MDMiIHk9IjEyOSIgZmlsbD0iI2Y0YjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjExIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj53aWRlIC8gbG93LWFuZ2xlPC90ZXh0PgoKICA8dGV4dCB4PSIzMTEiIHk9IjIxNCIgZmlsbD0iI2VkZjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5WaXNpb24gUmV2aWV3PC90ZXh0PgogIDx0ZXh0IHg9IjMxMSIgeT0iMjM0IiBmaWxsPSIjZmZkNzllIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPnNjb3JlIOKJpSA4NTwvdGV4dD4KCiAgPHRleHQgeD0iNTAzIiB5PSIyMTQiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+R2VuZXJhdGVkIEVkaXRzPC90ZXh0PgogIDx0ZXh0IHg9IjUwMyIgeT0iMjM0IiBmaWxsPSIjYjRmN2IzIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPnN1YmZvbGRlciB1cGxvYWQ8L3RleHQ+CgogIDx0ZXh0IHg9IjY2OCIgeT0iMjE0IiBmaWxsPSIjZWRmOGZmIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjkgUE08L3RleHQ+CiAgPHRleHQgeD0iNjY4IiB5PSIyMzIiIGZpbGw9IiM5ZmQ1ZTUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+ZGFpbHkgY3JvbjwvdGV4dD4KCiAgPHRleHQgeD0iNDA3IiB5PSIzNDYiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Q29ydGV4IFRocmVhZDwvdGV4dD4KICA8dGV4dCB4PSI0MDciIHk9IjM2NiIgZmlsbD0iI2Y0YjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5zdGF0dXMgKyBsaW5rczwvdGV4dD4KCiAgPHBhdGggZD0iTTE5NCA5NWg0MiIgc3Ryb2tlPSIjNjdmNGZmIiBzdHJva2Utd2lkdGg9IjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgLz4KICA8cGF0aCBkPSJNMzg2IDk1aDQyIiBzdHJva2U9IiM4YmZmOGEiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik0zMTEgMTMydjQ0IiBzdHJva2U9IiNmZmM4NmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik0zODYgMjE0aDQyIiBzdHJva2U9IiNmZmM4NmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik01NzggMjE0aDQyIiBzdHJva2U9IiM4YmZmOGEiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik01MDMgMjUwdjUyaC05NiIgc3Ryb2tlPSIjZGQ2ZmZmIiBzdHJva2Utd2lkdGg9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgLz4KICA8Y2lyY2xlIGN4PSIyMzYiIGN5PSI5NSIgcj0iNiIgZmlsbD0iIzY3ZjRmZiIgLz4KICA8Y2lyY2xlIGN4PSI0MjgiIGN5PSI5NSIgcj0iNiIgZmlsbD0iIzhiZmY4YSIgLz4KICA8Y2lyY2xlIGN4PSIzMTEiIGN5PSIxNzYiIHI9IjYiIGZpbGw9IiNmZmM4NmYiIC8+CiAgPGNpcmNsZSBjeD0iNDI4IiBjeT0iMjE0IiByPSI2IiBmaWxsPSIjZmZjODZmIiAvPgogIDxjaXJjbGUgY3g9IjYyMCIgY3k9IjIxNCIgcj0iNiIgZmlsbD0iIzhiZmY4YSIgLz4KPC9zdmc+Cg==',
+        previewUrl: buildWorkflowPreviewDataUrl({
+          title: 'Restaurant Food Edit Variations',
+          description:
+            'Generates five approved restaurant product-shot variations from the Food Edits Google Drive folder while preserving the original plated dish, then uploads accepted results into the Generated Edits subfolder for review.',
+          toolsUsed: [
+            'Google Drive',
+            'Google Workspace OAuth',
+            'Codex gpt-image-2 edit mode',
+            'Vision verification',
+            'Cron automation',
+          ],
+          accent: 'green',
+        }),
       },
       zipAsset: null,
       updatedAt: '2026-04-27T23:20:00.000Z',
       accent: 'green',
+    },
+    {
+      id: 'workflow-hyperframes-motion-pipeline',
+      title: 'Hyperframes Motion Video Pipeline',
+      description:
+        'Hyperframes now includes a concrete Retatrutide benefits explainer structure inside the peptide lane, while still covering Scavenjer, script-based content repurposing, and Business + AI Consulting motion workflows.',
+      toolsUsed: [
+        'Creative brief or source script',
+        'Storyboard / scene map',
+        'HTML compositions',
+        'GSAP timelines',
+        'Animated data graphics',
+        'Voiceover / narration pass',
+        'Compliance review',
+        'Hyperframes CLI',
+        'FFmpeg renderer',
+      ],
+      architecture:
+        'Retatrutide is now a fully-structured 32-second explainer inside the Hyperframes workflow, with hard visual changes every 3–5 seconds: Scene 1 hook uses a dark lab void, orbiting molecule core, particle burst, and title shockwave; Scene 2 builds a triple-agonist mechanism map across GLP-1, GIP, and glucagon lanes; Scene 3 hits appetite control with a satiety ring, craving-meter drop, and collapsing meal cards; Scene 4 pushes energy expenditure with a thermogenic heat map, rising graph, and body-outline scan; Scene 5 shifts into glucose and biomarker support with stabilizing curves and metric cards; Scene 6 reframes body composition with silhouette morphs and protocol-dependent language; Scene 7 handles supervision, sourcing, and dosage caveats with a compliance card lock; Scene 8 closes on a premium educational CTA. The ZIP bundle ships the actual storyboard, voiceover outline, graphics checklist, and JSON scene spec so the eventual Hyperframes build has plenty of animations, graphics, and detail instead of turning into a lazy wellness slideshow.',
+      diagramSource: {
+        path: 'fixtures/workflow-assets/workflow-hyperframes-motion-pipeline/hyperframes-motion-pipeline.excalidraw',
+        fileName: 'hyperframes-motion-pipeline.excalidraw',
+        mimeType: 'application/vnd.excalidraw+json',
+        sizeBytes: 20970,
+        uploadedAt: '2026-05-03T07:36:24.000Z',
+      },
+      diagramPreview: {
+        path: 'fixtures/workflow-assets/workflow-hyperframes-motion-pipeline/hyperframes-motion-pipeline-preview.svg',
+        fileName: 'hyperframes-motion-pipeline-preview.svg',
+        mimeType: 'image/svg+xml',
+        sizeBytes: 8976,
+        uploadedAt: '2026-05-03T07:36:24.000Z',
+        previewUrl: buildWorkflowPreviewDataUrl({
+          title: 'Hyperframes Motion Video Pipeline',
+          description:
+            'Hyperframes now includes a concrete Retatrutide benefits explainer structure inside the peptide lane, while still covering Scavenjer, script-based content repurposing, and Business + AI Consulting motion workflows.',
+          toolsUsed: [
+            'Creative brief or source script',
+            'Storyboard / scene map',
+            'HTML compositions',
+            'GSAP timelines',
+            'Animated data graphics',
+            'Voiceover / narration pass',
+            'Compliance review',
+            'Hyperframes CLI',
+            'FFmpeg renderer',
+          ],
+          accent: 'magenta',
+        }),
+      },
+      zipAsset: {
+        path: 'fixtures/workflow-assets/workflow-hyperframes-motion-pipeline/hyperframes-retatrutide-structure.zip',
+        fileName: 'hyperframes-retatrutide-structure.zip',
+        mimeType: 'application/zip',
+        sizeBytes: 4343,
+        uploadedAt: '2026-05-03T07:36:24.000Z',
+      },
+      updatedAt: '2026-05-03T07:36:24.000Z',
+      accent: 'magenta',
     },
     {
       id: 'workflow-higgsfield-mcp-device-auth',
@@ -1884,8 +2257,19 @@ export const DEFAULT_FALLBACK_DATA: CortexDashboardSnapshot = {
         mimeType: 'image/svg+xml',
         sizeBytes: 5181,
         uploadedAt: '2026-04-29T05:42:11.000Z',
-        previewUrl:
-          'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5ODAgNTQwIj4KICA8cmVjdCB3aWR0aD0iOTgwIiBoZWlnaHQ9IjU0MCIgcng9IjMwIiBmaWxsPSIjMDcwZDFhIiAvPgogIDxyZWN0IHg9IjQyIiB5PSI1NiIgd2lkdGg9IjIxMiIgaGVpZ2h0PSI5MCIgcng9IjE4IiBmaWxsPSIjMTIyODNkIiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KICA8cmVjdCB4PSIyOTgiIHk9IjU2IiB3aWR0aD0iMjIyIiBoZWlnaHQ9IjExMCIgcng9IjE4IiBmaWxsPSIjMjcxNzNkIiBzdHJva2U9IiNkZDZmZmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KICA8cmVjdCB4PSI1NzAiIHk9IjU2IiB3aWR0aD0iMjEwIiBoZWlnaHQ9Ijk2IiByeD0iMTgiIGZpbGw9IiMxODI5MjkiIHN0cm9rZT0iIzhiZmY4YSIgc3Ryb2tlLXdpZHRoPSIzIiAvPgogIDxyZWN0IHg9Ijc5OCIgeT0iNTYiIHdpZHRoPSIxNDIiIGhlaWdodD0iOTYiIHJ4PSIxOCIgZmlsbD0iIzM3MjExOCIgc3Ryb2tlPSIjZmZjODZmIiBzdHJva2Utd2lkdGg9IjMiIC8+CiAgPHJlY3QgeD0iMjQ2IiB5PSIyMjQiIHdpZHRoPSIzMDAiIGhlaWdodD0iMTA0IiByeD0iMTgiIGZpbGw9IiMxMjI4M2QiIHN0cm9rZT0iIzY3ZjRmZiIgc3Ryb2tlLXdpZHRoPSIzIiAvPgogIDxyZWN0IHg9IjU4NCIgeT0iMjI0IiB3aWR0aD0iMzE2IiBoZWlnaHQ9IjExNiIgcng9IjE4IiBmaWxsPSIjMzcyMTE4IiBzdHJva2U9IiNmZmM4NmYiIHN0cm9rZS13aWR0aD0iMyIgLz4KICA8cmVjdCB4PSIzMjAiIHk9IjM5MiIgd2lkdGg9IjM2NCIgaGVpZ2h0PSIxMDIiIHJ4PSIxOCIgZmlsbD0iIzI3MTczZCIgc3Ryb2tlPSIjZGQ2ZmZmIiBzdHJva2Utd2lkdGg9IjMiIC8+CgogIDx0ZXh0IHg9IjE0OCIgeT0iOTIiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UHJvdGVjdGVkIFJlc291cmNlPC90ZXh0PgogIDx0ZXh0IHg9IjE0OCIgeT0iMTEyIiBmaWxsPSIjOWZkNWU1IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPm1jcC5oaWdnc2ZpZWxkLmFpIG1ldGFkYXRhPC90ZXh0PgogIDx0ZXh0IHg9IjE0OCIgeT0iMTMwIiBmaWxsPSIjOWZkNWU1IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPnBvaW50cyBIZXJtZXMtY2xhc3MgY2xpZW50czwvdGV4dD4KCiAgPHRleHQgeD0iNDA5IiB5PSI5MCIgZmlsbD0iI2VkZjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5EZXZpY2UgRmxvdyBBdXRoPC90ZXh0PgogIDx0ZXh0IHg9IjQwOSIgeT0iMTEwIiBmaWxsPSIjZjRiOGZmIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBPU1QgL2F1dGhvcml6ZSDihpIgdmVyaWZpY2F0aW9uIFVSSTwvdGV4dD4KICA8dGV4dCB4PSI0MDkiIHk9IjEyOCIgZmlsbD0iI2Y0YjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5wb2xsIC90b2tlbiB1bnRpbCBhcHByb3ZhbCBsYW5kczwvdGV4dD4KICA8dGV4dCB4PSI0MDkiIHk9IjE0NiIgZmlsbD0iI2Y0YjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5mbmYtZGV2aWNlLWF1dGguaGlnZ3NmaWVsZC5haTwvdGV4dD4KCiAgPHRleHQgeD0iNjc1IiB5PSI5MiIgZmlsbD0iI2VkZjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Ub2tlbiBJbiBDb3J0ZXg8L3RleHQ+CiAgPHRleHQgeD0iNjc1IiB5PSIxMTIiIGZpbGw9IiNiNGY3YjMiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+cGVyc2lzdCBiZWFyZXIgYXM8L3RleHQ+CiAgPHRleHQgeD0iNjc1IiB5PSIxMzAiIGZpbGw9IiNiNGY3YjMiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SElHR1NGSUVMRF9NQ1BfVE9LRU48L3RleHQ+CgogIDx0ZXh0IHg9Ijg2OSIgeT0iOTIiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TmF0aXZlIE1DUDwvdGV4dD4KICA8dGV4dCB4PSI4NjkiIHk9IjExMiIgZmlsbD0iI2ZmZDc5ZSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5IVFRQICsgQmVhcmVyPC90ZXh0PgogIDx0ZXh0IHg9Ijg2OSIgeT0iMTMwIiBmaWxsPSIjZmZkNzllIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmhlYWRlciBhdXRoPC90ZXh0PgoKICA8dGV4dCB4PSIzOTYiIHk9IjI2MCIgZmlsbD0iI2VkZjhmZiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5MaXZlIFRvb2wgVmVyaWZpY2F0aW9uPC90ZXh0PgogIDx0ZXh0IHg9IjM5NiIgeT0iMjgwIiBmaWxsPSIjOWZkNWU1IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmJhbGFuY2UgLyBsaXN0X3dvcmtzcGFjZXMgLyBtb2RlbHNfZXhwbG9yZTwvdGV4dD4KICA8dGV4dCB4PSIzOTYiIHk9IjI5OCIgZmlsbD0iIzlmZDVlNSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5zaG93X21hcmtldGluZ19zdHVkaW8gLyBzaG93X2dlbmVyYXRpb25zIC8gc2hvd19tZWRpYXM8L3RleHQ+CiAgPHRleHQgeD0iMzk2IiB5PSIzMTYiIGZpbGw9IiM5ZmQ1ZTUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+cHJvdmVzIGF1dGggKyB0b29sIGRpc2NvdmVyeSBhcmUgbGl2ZTwvdGV4dD4KCiAgPHRleHQgeD0iNzQyIiB5PSIyNjAiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Q3VycmVudCBSdW50aW1lIENvbnRleHQ8L3RleHQ+CiAgPHRleHQgeD0iNzQyIiB5PSIyODAiIGZpbGw9IiNmZmQ3OWUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+QWNjb3VudDogemFpZGVrdGhlY3JlYXRvckBnbWFpbC5jb208L3RleHQ+CiAgPHRleHQgeD0iNzQyIiB5PSIyOTgiIGZpbGw9IiNmZmQ3OWUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UGxhbjogZnJlZSAvIENyZWRpdHM6IDAgLyBQcml2YXRlIHdvcmtzcGFjZSBsaXZlPC90ZXh0PgogIDx0ZXh0IHg9Ijc0MiIgeT0iMzE2IiBmaWxsPSIjZmZkNzllIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkJyb3dzaW5nIHdvcmtzOyBuZXcgcGFpZCBnZW5lcmF0aW9ucyBhcmUgYmxvY2tlZDwvdGV4dD4KCiAgPHRleHQgeD0iNTAyIiB5PSI0MzAiIGZpbGw9IiNlZGY4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UmVtYWluaW5nIENsZWFudXA8L3RleHQ+CiAgPHRleHQgeD0iNTAyIiB5PSI0NTAiIGZpbGw9IiNmNGI4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TGl2ZSBNQ1AgY29ubmVjdGlvbiB3b3JrcywgYnV0IHRoZSBleHBlY3RlZCBDb3J0ZXggY29uZmlnLy5lbnY8L3RleHQ+CiAgPHRleHQgeD0iNTAyIiB5PSI0NjgiIGZpbGw9IiNmNGI4ZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+d2lyaW5nIHdhcyBub3Qgb2J2aW91cyBvbiBkaXNrLCBzbyBwZXJzaXN0ZW5jZSBzaG91bGQgYmUgY2xlYW5lZCB1cC48L3RleHQ+CgogIDxwYXRoIGQ9Ik0yNTQgMTAwaDQ0IiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik01MjAgMTAwaDUwIiBzdHJva2U9IiNkZDZmZmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik03ODAgMTAwaDE4IiBzdHJva2U9IiM4YmZmOGEiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik00MDkgMTY2djU4IiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik01NDYgMjc2aDM4IiBzdHJva2U9IiM2N2Y0ZmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogIDxwYXRoIGQ9Ik03NDIgMzQwdjE4SDUwMnYzNCIgc3Ryb2tlPSIjZmZjODZmIiBzdHJva2Utd2lkdGg9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgLz4KICA8Y2lyY2xlIGN4PSIyOTgiIGN5PSIxMDAiIHI9IjYiIGZpbGw9IiM2N2Y0ZmYiIC8+CiAgPGNpcmNsZSBjeD0iNTcwIiBjeT0iMTAwIiByPSI2IiBmaWxsPSIjZGQ2ZmZmIiAvPgogIDxjaXJjbGUgY3g9Ijc5OCIgY3k9IjEwMCIgcj0iNiIgZmlsbD0iIzhiZmY4YSIgLz4KICA8Y2lyY2xlIGN4PSI0MDkiIGN5PSIyMjQiIHI9IjYiIGZpbGw9IiM2N2Y0ZmYiIC8+CiAgPGNpcmNsZSBjeD0iNTg0IiBjeT0iMjc2IiByPSI2IiBmaWxsPSIjNjdmNGZmIiAvPgo8L3N2Zz4K',
+        previewUrl: buildWorkflowPreviewDataUrl({
+          title: 'Higgsfield MCP Device-Auth Setup',
+          description:
+            "Connects Cortex to Higgsfield's remote MCP through device-flow auth, persists a bearer for native HTTP MCP calls, then verifies live workspace, model, media, and generation-history tools while capturing the current blocker: the account is authenticated but sitting at 0 credits on the free plan.",
+          toolsUsed: [
+            'Higgsfield MCP',
+            'Device-flow OAuth',
+            'Native HTTP MCP',
+            'HIGGSFIELD_MCP_TOKEN',
+            'Workspace and generation probes',
+          ],
+          accent: 'magenta',
+        }),
       },
       zipAsset: null,
       updatedAt: '2026-04-29T05:42:11.000Z',

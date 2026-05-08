@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Resonance lore thumbnail">
+  <rect width="320" height="220" rx="16" fill="#090b18"/>
+  <path d="M32 36h256v148H32z" fill="#12182c"/>
+  <path d="M50 164c28-50 42-50 70 0s42 50 70 0 42-50 70 0" fill="none" stroke="#e879f9" stroke-width="6" stroke-linecap="round"/>
+  <path d="M50 132c28-38 42-38 70 0s42 38 70 0 42-38 70 0" fill="none" stroke="#18d9ff" stroke-width="4" stroke-linecap="round" opacity=".8"/>
+  <circle cx="160" cy="86" r="36" fill="#e879f9" opacity=".16"/>
+  <rect x="128" y="56" width="64" height="60" rx="28" fill="#0d1224" stroke="#f4b8ff" stroke-width="4"/>
+  <path d="M142 86h36" stroke="#f4b8ff" stroke-width="4" stroke-linecap="round"/>
+  <path d="M32 36l256 148M288 36L32 184" stroke="#ffffff" stroke-opacity=".06"/>
+</svg>

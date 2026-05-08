@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Verdant Sector environment thumbnail">
+  <rect width="320" height="220" rx="16" fill="#07120d"/>
+  <path d="M0 158c45-38 72-34 112-12s70 24 116-4c32-20 61-21 92 2v76H0z" fill="#12351f"/>
+  <path d="M78 168c30-62 76-96 138-102" fill="none" stroke="#7ee787" stroke-width="7" stroke-linecap="round"/>
+  <path d="M92 130c24-11 38-9 54 8M146 98c23-13 43-15 62-6" fill="none" stroke="#c5f82a" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="220" cy="68" r="24" fill="#ffc86f" opacity=".3"/>
+  <path d="M60 184h202" stroke="#7ee787" stroke-width="4" stroke-linecap="round"/>
+</svg>

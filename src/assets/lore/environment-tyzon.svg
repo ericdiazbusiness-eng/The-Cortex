@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Tyzon city environment thumbnail">
+  <rect width="320" height="220" rx="16" fill="#0a0d18"/>
+  <path d="M26 190h268V172H26z" fill="#162235"/>
+  <path d="M52 172V68h34v104M104 172V42h46v130M168 172V78h38v94M226 172V54h48v118" fill="#21173d"/>
+  <path d="M112 58h30M230 74h36M174 100h28M58 92h22" stroke="#e879f9" stroke-width="4" stroke-linecap="round"/>
+  <path d="M40 142h240" stroke="#ffc86f" stroke-width="4" stroke-dasharray="10 8"/>
+  <path d="M44 190c38-26 68-31 116-8s84 18 124-8" fill="none" stroke="#18d9ff" stroke-width="4" stroke-opacity=".75"/>
+</svg>

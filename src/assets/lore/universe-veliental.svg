@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Veliental Ascendance lore thumbnail">
+  <rect width="320" height="220" rx="16" fill="#0d0f18"/>
+  <circle cx="160" cy="110" r="82" fill="#281743"/>
+  <circle cx="160" cy="110" r="56" fill="#111a2f" stroke="#ffc86f" stroke-width="5"/>
+  <path d="M160 42l20 48 52 6-39 34 12 51-45-27-45 27 12-51-39-34 52-6z" fill="#ffc86f" opacity=".24"/>
+  <path d="M160 62v96M112 110h96M126 76l68 68M194 76l-68 68" stroke="#18d9ff" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="160" cy="110" r="14" fill="#ff7c8d"/>
+</svg>

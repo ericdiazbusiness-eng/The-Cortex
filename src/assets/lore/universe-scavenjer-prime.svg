@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Scavenjer Prime lore thumbnail">
+  <rect width="320" height="220" rx="16" fill="#07111f"/>
+  <path d="M0 166h320v54H0z" fill="#0f2a22"/>
+  <path d="M32 156h54V72h46v84h36V48h58v108h62v16H32z" fill="#132743"/>
+  <path d="M54 136h210" stroke="#7ee787" stroke-width="3" stroke-dasharray="8 10"/>
+  <circle cx="236" cy="120" r="26" fill="#c5f82a" opacity=".18"/>
+  <circle cx="236" cy="120" r="12" fill="#c5f82a"/>
+  <path d="M236 86v22m0 24v22m-34-34h22m24 0h22" stroke="#c5f82a" stroke-width="5" stroke-linecap="round"/>
+  <path d="M65 103h28M148 86h24M207 74h32" stroke="#18d9ff" stroke-width="4" stroke-linecap="round"/>
+</svg>

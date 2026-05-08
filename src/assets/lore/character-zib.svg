@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="ZIB unit character thumbnail">
+  <rect width="320" height="220" rx="16" fill="#07111f"/>
+  <rect x="106" y="58" width="108" height="92" rx="28" fill="#10243a" stroke="#7ee787" stroke-width="5"/>
+  <circle cx="140" cy="96" r="8" fill="#7ee787"/>
+  <circle cx="180" cy="96" r="8" fill="#7ee787"/>
+  <path d="M142 124h36" stroke="#c5f82a" stroke-width="5" stroke-linecap="round"/>
+  <path d="M112 160h96l16 36H96z" fill="#1b2f29"/>
+  <path d="M160 34v24M130 38l12 22M190 38l-12 22" stroke="#67f4ff" stroke-width="4" stroke-linecap="round"/>
+  <path d="M132 176h56" stroke="#7ee787" stroke-width="5" stroke-linecap="round"/>
+</svg>

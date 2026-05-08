@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { UI_MODE_STORAGE_KEY, WORKSPACE_CONTEXT_STORAGE_KEY } from '@/lib/ui-mode'
@@ -47,6 +47,39 @@ const createApiStub = (
         }
 
   return {
+  getDesktopWindowState: vi.fn().mockResolvedValue({
+    overlayEnabled: false,
+    visible: true,
+    alwaysOnTop: false,
+    interactive: true,
+    shortcuts: {
+      toggleVisibility: 'Ctrl+Alt+C',
+      toggleOverlay: 'Ctrl+Alt+O',
+      quit: 'Ctrl+Alt+Q',
+    },
+  }),
+  setDesktopOverlayEnabled: vi.fn().mockImplementation(async (enabled: boolean) => ({
+    overlayEnabled: enabled,
+    visible: true,
+    alwaysOnTop: enabled,
+    interactive: true,
+    shortcuts: {
+      toggleVisibility: 'Ctrl+Alt+C',
+      toggleOverlay: 'Ctrl+Alt+O',
+      quit: 'Ctrl+Alt+Q',
+    },
+  })),
+  toggleDesktopWindowVisibility: vi.fn().mockResolvedValue({
+    overlayEnabled: false,
+    visible: false,
+    alwaysOnTop: false,
+    interactive: true,
+    shortcuts: {
+      toggleVisibility: 'Ctrl+Alt+C',
+      toggleOverlay: 'Ctrl+Alt+O',
+      quit: 'Ctrl+Alt+Q',
+    },
+  }),
   getWorkspaceSnapshot: vi.fn().mockImplementation(getWorkspaceSnapshot),
   getDashboardSnapshot: vi.fn().mockImplementation(async () => clone(snapshot)),
   getDatabaseStatus: vi.fn().mockResolvedValue({
@@ -71,6 +104,7 @@ const createApiStub = (
       description: payload.description,
       toolsUsed: payload.toolsUsed,
       architecture: payload.architecture,
+      diagramGraph: payload.diagramGraph ?? null,
       diagramSource: {
         path: `fixtures/workflow-assets/${workflowId}/${payload.diagramSource.fileName}`,
         fileName: payload.diagramSource.fileName,
@@ -118,6 +152,8 @@ const createApiStub = (
       description: payload.description,
       toolsUsed: payload.toolsUsed,
       architecture: payload.architecture,
+      diagramGraph:
+        payload.diagramGraph === undefined ? current.diagramGraph ?? null : payload.diagramGraph,
       diagramSource:
         payload.diagramSource.mode === 'replace'
           ? {
@@ -173,6 +209,13 @@ const createApiStub = (
     ok: true,
     canceled: false,
     filePath: 'C:\\Downloads\\workflow-asset',
+  }),
+  getWorkflowAssetContent: vi.fn().mockResolvedValue({
+    fileName: 'workflow-asset.json',
+    mimeType: 'application/json',
+    sizeBytes: 2,
+    dataBase64: 'e30=',
+    text: '{}',
   }),
   runWorkspaceCommand: vi.fn().mockImplementation(async (_workspace, commandId, context) => ({
     commandId,
@@ -307,19 +350,39 @@ describe('The Cortex app', () => {
     await user.click(screen.getByRole('link', { name: 'Xylos' }))
     expect(await screen.findByRole('heading', { name: 'Choose a ZiB' })).toBeInTheDocument()
     expect(screen.getByText('Select a ZiB and Scavenjer-operation role to enter the workspace.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Command/i })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByText('Your Active ZiB')).toBeInTheDocument()
-    expect(screen.getByText('Command Workspace')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Command/i })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByText('Command Workspace')).not.toBeInTheDocument()
     expect(screen.queryByText('Scavenjer GM Workspace')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Field/i }))
     expect(await screen.findByText('Field Workspace')).toBeInTheDocument()
-    expect(screen.getByText('DropOps')).toBeInTheDocument()
+    expect(screen.getAllByText('DropOps').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Host And Field Ops').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Missions').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Outputs').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: /Change selected ZiB\. Current: Field/i })).toBeInTheDocument()
 
     await user.click(screen.getByRole('link', { name: 'Knowledge' }))
-    expect(await screen.findByText('Scavenjer Source Truth')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Operations knowledge mode' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Lore knowledge mode' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Core Ecosystem/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Marketplace & Economy/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('Marbleverse AR drops')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Operations knowledge mode' }))
+    expect(await screen.findByRole('button', { name: 'Select Gameplay Loop' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Select Business & Economy' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Select Studios View' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Select Gameplay Loop' }))
+    expect(await screen.findByRole('button', { name: 'Open Drops & Field Ops' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open Ekos & Identity' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Open Drops & Field Ops' }))
+    expect(await screen.findByRole('region', { name: 'Drops & Field Ops detail view' })).toBeInTheDocument()
+    expect(screen.getByText('Marbleverse AR drops')).toBeInTheDocument()
+    expect(screen.getByText('City voting and drop requests')).toBeInTheDocument()
+    expect(screen.getAllByText('Notion').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('scavenjer.com').length).toBeGreaterThan(0)
   })
 
   it('renders the business knowledge route with the shared workspace layout', async () => {
@@ -331,7 +394,42 @@ describe('The Cortex app', () => {
     expect(screen.getByText('Focused Relationship')).toBeInTheDocument()
     expect(screen.getByText('Operating References')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'ZiBz' })).toBeInTheDocument()
-    expect(screen.queryByText('Scavenjer Source Truth')).not.toBeInTheDocument()
+    expect(screen.queryByText('Scavenjer Knowledge Index')).not.toBeInTheDocument()
+  })
+
+  it('renders the Cortex lore simulation workspace with universes, characters, images, and automation context', async () => {
+    const user = userEvent.setup()
+    window.location.hash = '#/cortex/knowledge'
+    window.cortexApi = createApiStub()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Lore knowledge mode' }))
+    expect(screen.getAllByText('Scavenjer Prime').length).toBeGreaterThan(0)
+    expect(screen.getByText('Resonance')).toBeInTheDocument()
+    expect(screen.getByText('Veliental Ascendance')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open Characters' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Select Resonance simulation' }))
+    expect(await screen.findByRole('button', { name: 'Open Characters' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open Environments' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open Factions' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open Artifacts' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Open Characters' }))
+    expect(await screen.findByRole('img', { name: /Zaidek thumbnail/i })).toBeInTheDocument()
+    expect(screen.getAllByText('ZIB Units').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Core Sector')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/Use for short signal statements, drop-adjacent prompts/i),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Zaidek thumbnail/i }))
+    expect(await screen.findByRole('region', { name: 'Zaidek detail view' })).toBeInTheDocument()
+    expect(screen.getByText('Visual and Story Tone')).toBeInTheDocument()
+    expect(screen.getAllByText('Automation Context').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Personality Context').length).toBeGreaterThan(0)
+    expect(screen.getByText(/Use for short signal statements, drop-adjacent prompts/i)).toBeInTheDocument()
+    expect(screen.getByText(/Reality Zaidek/i)).toBeInTheDocument()
   })
 
   it('renders the business ZiBz route through the shared role selection surface', async () => {
@@ -342,11 +440,16 @@ describe('The Cortex app', () => {
 
     expect(await screen.findByRole('heading', { name: 'Choose a ZiB' })).toBeInTheDocument()
     expect(screen.getByText('Select a ZiB and business-operation role to enter the workspace.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Command/i })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByText('Command Workspace')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Command/i })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByText('Command Workspace')).not.toBeInTheDocument()
     expect(screen.queryByText('Xylos Index')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Systems/i }))
+    const systemsRole = screen
+      .getAllByRole('button', { name: /Systems/i })
+      .find((button) => button.className.includes('zs-choice-card'))
+    expect(systemsRole).toBeTruthy()
+
+    await user.click(systemsRole!)
     expect(await screen.findByText('Systems Workspace')).toBeInTheDocument()
     expect(screen.getByText('Finance Admin')).toBeInTheDocument()
   })
@@ -361,23 +464,29 @@ describe('The Cortex app', () => {
     expect(screen.getByText('Select A Workflow')).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: /drop request to live drop workflow preview/i })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Drop Request To Live Drop' }))
-    expect(await screen.findByRole('img', { name: /drop request to live drop workflow preview/i })).toBeInTheDocument()
+    expect(await screen.findByLabelText(/drop request to live drop workflow canvas/i)).toBeInTheDocument()
+    expect(screen.getByText('Workflow Diagram')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /drop request to live drop workflow preview/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Flowchart' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Legacy Image' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'New Workflow' }))
     await user.click(screen.getByRole('button', { name: 'Create Workflow' }))
     expect(await screen.findByText('Title is required.')).toBeInTheDocument()
 
-    await user.type(screen.getByLabelText('Title'), 'Daily Workflow Export')
-    await user.type(
-      screen.getByLabelText('Description'),
-      'Exports the approved workflow inventory to downstream systems.',
-    )
-    await user.type(screen.getByPlaceholderText('Add a tool'), 'Export runner')
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Daily Workflow Export' },
+    })
+    fireEvent.change(screen.getByLabelText('Description'), {
+      target: { value: 'Exports the approved workflow inventory to downstream systems.' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('Add a tool'), {
+      target: { value: 'Export runner' },
+    })
     await user.click(screen.getByRole('button', { name: 'Add Tool' }))
-    await user.type(
-      screen.getByLabelText('Architecture'),
-      'Cron start, export transform, then delivery into archive storage.',
-    )
+    fireEvent.change(screen.getByLabelText('Architecture'), {
+      target: { value: 'Cron start, export transform, then delivery into archive storage.' },
+    })
 
     await user.click(screen.getByRole('button', { name: 'Create Workflow' }))
     expect(await screen.findByText('Diagram source is required for a new workflow.')).toBeInTheDocument()
@@ -404,6 +513,26 @@ describe('The Cortex app', () => {
     expect(screen.getByText(/close-detail-appetite/i)).toBeInTheDocument()
     expect(screen.getByText(/tableside-context-wide/i)).toBeInTheDocument()
     expect(screen.getByText(/low-angle-editorial/i)).toBeInTheDocument()
+  })
+
+
+  it('surfaces the detailed Retatrutide Hyperframes structure with scene detail and ZIP bundle context', async () => {
+    const user = userEvent.setup()
+    window.location.hash = '#/cortex/workflows'
+    window.cortexApi = createApiStub()
+    render(<App />)
+
+    expect(await screen.findByRole('button', { name: 'Hyperframes Motion Video Pipeline' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Hyperframes Motion Video Pipeline' }))
+
+    expect(await screen.findByText(/Retatrutide benefits explainer structure/i)).toBeInTheDocument()
+    expect(screen.getByText(/Scene 1 hook uses a dark lab void/i)).toBeInTheDocument()
+    expect(screen.getByText(/triple-agonist mechanism map across GLP-1, GIP, and glucagon lanes/i)).toBeInTheDocument()
+    expect(screen.getByText(/satiety ring, craving-meter drop, and collapsing meal cards/i)).toBeInTheDocument()
+    expect(screen.getByText(/thermogenic heat map, rising graph, and body-outline scan/i)).toBeInTheDocument()
+    expect(screen.getByText(/hyperframes-retatrutide-structure\.zip/i)).toBeInTheDocument()
+    expect(screen.getByText(/plenty of animations, graphics, and detail/i)).toBeInTheDocument()
   })
 
   it('surfaces the Higgsfield MCP workflow with auth, verification, and runtime status context', async () => {

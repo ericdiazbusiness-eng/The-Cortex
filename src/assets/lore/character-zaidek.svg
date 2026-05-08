@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Zaidek character thumbnail">
+  <rect width="320" height="220" rx="16" fill="#070a12"/>
+  <path d="M98 196c7-52 28-82 62-82s55 30 62 82z" fill="#151f2f"/>
+  <rect x="116" y="40" width="88" height="92" rx="36" fill="#0b111f" stroke="#67f4ff" stroke-width="4"/>
+  <path d="M128 82h64" stroke="#67f4ff" stroke-width="6" stroke-linecap="round"/>
+  <path d="M144 106h32" stroke="#e879f9" stroke-width="4" stroke-linecap="round"/>
+  <path d="M92 68h28M200 68h28M160 22v22" stroke="#c5f82a" stroke-width="5" stroke-linecap="round"/>
+  <path d="M82 196h156" stroke="#67f4ff" stroke-opacity=".55" stroke-width="5" stroke-linecap="round"/>
+</svg>

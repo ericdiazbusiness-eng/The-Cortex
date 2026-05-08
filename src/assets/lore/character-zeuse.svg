@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Zeuse character thumbnail">
+  <rect width="320" height="220" rx="16" fill="#120b0b"/>
+  <path d="M96 196c9-56 31-92 64-92s55 36 64 92z" fill="#25131a"/>
+  <circle cx="160" cy="78" r="34" fill="#8a5639"/>
+  <path d="M126 68c13-34 55-39 78-10-18-5-35-4-53 4-9 4-17 6-25 6z" fill="#1b1010"/>
+  <path d="M116 132h88l18 64H98z" fill="#263e46"/>
+  <path d="M128 150l64 28M192 150l-64 28" stroke="#ff7c8d" stroke-width="5" stroke-linecap="round"/>
+  <path d="M234 64l-20 46 30-6-20 50" fill="none" stroke="#ffc86f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

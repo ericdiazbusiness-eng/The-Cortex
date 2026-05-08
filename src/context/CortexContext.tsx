@@ -27,6 +27,7 @@ import {
   getWorkspaceRouteOptions,
   type UiMode,
 } from '@/lib/ui-mode'
+import { SCAVENJER_LORE_ATLAS } from '@/data/scavenjer-lore'
 import {
   DEFAULT_REALTIME_MODE,
   DEFAULT_REALTIME_STATE,
@@ -39,6 +40,8 @@ import {
   type CortexDashboardSnapshot,
   type CortexVoiceActionRequest,
   type CortexWorkflow,
+  type CortexWorkflowAssetContentRequest,
+  type CortexWorkflowAssetContentResult,
   type CortexWorkflowAssetDownloadRequest,
   type CortexWorkflowAssetDownloadResult,
   type CortexWorkflowCreateInput,
@@ -90,6 +93,9 @@ type CortexContextValue = {
   downloadWorkflowAsset: (
     payload: CortexWorkflowAssetDownloadRequest,
   ) => Promise<CortexWorkflowAssetDownloadResult>
+  getWorkflowAssetContent: (
+    payload: CortexWorkflowAssetContentRequest,
+  ) => Promise<CortexWorkflowAssetContentResult>
   refresh: () => Promise<void>
 }
 
@@ -270,6 +276,8 @@ const normalizeEntityRecord = (
       'message',
       'nextAction',
       'currentContext',
+      'automationContext',
+      'personalityContext',
       'routeSubtitle',
     ]) ?? '',
   record,
@@ -318,6 +326,13 @@ const getWorkspaceEntityRecords = (
 
   const workspace = workspaceSnapshot.workspace
   const dashboard = workspaceSnapshot.dashboard
+  const loreAtlasRecords = [
+    ...SCAVENJER_LORE_ATLAS.loreUniverses,
+    ...SCAVENJER_LORE_ATLAS.loreCharacters,
+    ...SCAVENJER_LORE_ATLAS.loreEnvironments,
+    ...SCAVENJER_LORE_ATLAS.loreFactions,
+    ...SCAVENJER_LORE_ATLAS.loreArtifacts,
+  ]
   return [
     ...dashboard.missions.map((record, index) =>
       normalizeEntityRecord(workspace, 'mission', record, `mission-${index}`),
@@ -339,6 +354,9 @@ const getWorkspaceEntityRecords = (
     ),
     ...dashboard.loreEntries.map((record, index) =>
       normalizeEntityRecord(workspace, 'lore', record, `lore-${index}`),
+    ),
+    ...loreAtlasRecords.map((record, index) =>
+      normalizeEntityRecord(workspace, 'lore', record, `lore-atlas-${index}`),
     ),
     ...dashboard.studioAssets.map((record, index) =>
       normalizeEntityRecord(workspace, 'studio_asset', record, `studio-asset-${index}`),
@@ -625,6 +643,11 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
 
   const downloadWorkflowAsset = useCallback(
     (payload: CortexWorkflowAssetDownloadRequest) => api.downloadWorkflowAsset(payload),
+    [api],
+  )
+
+  const getWorkflowAssetContent = useCallback(
+    (payload: CortexWorkflowAssetContentRequest) => api.getWorkflowAssetContent(payload),
     [api],
   )
 
@@ -1396,6 +1419,7 @@ export const CortexProvider = ({ children }: { children: ReactNode }) => {
         updateWorkflow,
         deleteWorkflow,
         downloadWorkflowAsset,
+        getWorkflowAssetContent,
         refresh,
       }}
     >
